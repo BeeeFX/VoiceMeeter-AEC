@@ -1,0 +1,59 @@
+Validation profile: Balanced
+Scenario seed offset=0, near-end scale=1
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end modulated harmonic signal (no speech recording)
+Echo only after convergence: 37.45 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 34.04 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.832, correlation 0.959, error improvement 15.79 dB
+Synthetic near-end alignment: 914 samples = 19.042 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 86 us; max 339 us; total 0.366 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+DSP VALIDATION: PASS
+Harmonic subtest: PASS at experimental thresholds
+Scenario seed offset=0, near-end scale=1
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end independent colored noise (no speech recording)
+Echo only after convergence: 37.45 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 33.97 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.733, correlation 0.856, error improvement 3.29 dB
+Synthetic near-end alignment: 910 samples = 18.958 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 86 us; max 322 us; total 0.362 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+DSP VALIDATION: PASS
+Stationary double-signal stress: OK
+Scenario seed offset=173, near-end scale=0.5
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end modulated harmonic signal (no speech recording)
+Echo only after convergence: 37.38 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 33.93 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.752, correlation 0.911, error improvement 18.84 dB
+Synthetic near-end alignment: 913 samples = 19.021 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 86 us; max 296 us; total 0.363 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+DSP VALIDATION: PASS
+Scenario seed offset=819, near-end scale=0.5
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end independent colored noise (no speech recording)
+Echo only after convergence: 37.34 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 33.87 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.386, correlation 0.673, error improvement 6.15 dB
+Synthetic near-end alignment: 910 samples = 18.958 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 85 us; max 381 us; total 0.361 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+DSP VALIDATION: PASS
+Scenario seed offset=417, near-end scale=1.5
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end modulated harmonic signal (no speech recording)
+Echo only after convergence: 37.47 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 33.93 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.875, correlation 0.972, error improvement 14.05 dB
+Synthetic near-end alignment: 914 samples = 19.042 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 85 us; max 271 us; total 0.363 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+DSP VALIDATION: PASS
+Scenario seed offset=631, near-end scale=1.5
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end independent colored noise (no speech recording)
+Echo only after convergence: 37.44 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 34.00 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.848, correlation 0.907, error improvement 1.53 dB
+Synthetic near-end alignment: 910 samples = 18.958 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 85 us; max 302 us; total 0.360 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+DSP VALIDATION: PASS
+Transport: 34 channels, double buffer, 4 formats, other channels unchanged: OK.
+Full callback/FFI: framing, 34-channel preservation, immediate mute and invalid-index detection PASS.

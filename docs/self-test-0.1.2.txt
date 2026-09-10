@@ -1,0 +1,68 @@
+Release build and application tests: exit 0. No audio driver opened.
+running 5 tests
+test recovery_tests::recovery_is_bounded_and_selective ... ok
+test engine::tests::transitions_and_unmute_are_bounded ... ok
+test engine::tests::hold_is_bounded_and_real ... ok
+test engine::tests::silence_missing_reference_mute_and_nonfinite ... ok
+test engine::tests::bypass_is_exact_fixed_delay_for_varied_callback_sizes ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+Scenario seed offset=0, near-end scale=1
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end modulated harmonic signal (no speech recording)
+Echo only after convergence: 37.45 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 34.04 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.843, correlation 0.963, error improvement 16.27 dB
+Synthetic near-end alignment: 914 samples = 19.042 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 86 us; max 325 us; total 0.366 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+DSP VALIDATION: PASS
+Harmonic subtest: PASS at experimental thresholds
+Scenario seed offset=0, near-end scale=1
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end independent colored noise (no speech recording)
+Echo only after convergence: 37.45 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 33.97 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.773, correlation 0.872, error improvement 3.75 dB
+Synthetic near-end alignment: 910 samples = 18.958 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 85 us; max 313 us; total 0.360 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+DSP VALIDATION: PASS
+Stationary double-signal stress: OK
+Scenario seed offset=173, near-end scale=0.5
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end modulated harmonic signal (no speech recording)
+Echo only after convergence: 37.38 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 33.93 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.775, correlation 0.921, error improvement 19.35 dB
+Synthetic near-end alignment: 913 samples = 19.021 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 85 us; max 280 us; total 0.362 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+DSP VALIDATION: PASS
+Scenario seed offset=819, near-end scale=0.5
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end independent colored noise (no speech recording)
+Echo only after convergence: 37.34 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 33.87 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.516, correlation 0.747, error improvement 7.12 dB
+Synthetic near-end alignment: 910 samples = 18.958 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 85 us; max 307 us; total 0.362 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+DSP VALIDATION: PASS
+Scenario seed offset=417, near-end scale=1.5
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end modulated harmonic signal (no speech recording)
+Echo only after convergence: 37.47 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 33.93 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.887, correlation 0.977, error improvement 14.85 dB
+Synthetic near-end alignment: 914 samples = 19.042 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 91 us; max 292 us; total 0.366 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+DSP VALIDATION: PASS
+Scenario seed offset=631, near-end scale=1.5
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end independent colored noise (no speech recording)
+Echo only after convergence: 37.44 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 34.00 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.898, correlation 0.925, error improvement 2.34 dB
+Synthetic near-end alignment: 910 samples = 18.958 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 89 us; max 339 us; total 0.363 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+DSP VALIDATION: PASS
+Transport: 34 channels, double buffer, 4 formats, other channels unchanged: OK.
+Full callback/FFI: framing, 34-channel preservation, immediate mute and invalid-index detection PASS.

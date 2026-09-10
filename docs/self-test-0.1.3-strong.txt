@@ -1,0 +1,58 @@
+Validation profile: Standard
+Scenario seed offset=0, near-end scale=1
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end modulated harmonic signal (no speech recording)
+Echo only after convergence: 37.45 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 34.04 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.609, correlation 0.844, error improvement 10.47 dB
+Synthetic near-end alignment: 914 samples = 19.042 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 90 us; max 393 us; total 0.376 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+DSP VALIDATION: PASS
+Harmonic subtest: PASS at experimental thresholds
+Scenario seed offset=0, near-end scale=1
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end independent colored noise (no speech recording)
+Echo only after convergence: 37.45 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 33.97 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.119, correlation 0.390, error improvement -1.77 dB
+Synthetic near-end alignment: 915 samples = 19.062 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 90 us; max 648 us; total 0.376 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+Stationary double-signal stress: FAIL preservation criterion; quality limitation, do not hide
+Scenario seed offset=173, near-end scale=0.5
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end modulated harmonic signal (no speech recording)
+Echo only after convergence: 37.38 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 33.93 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.379, correlation 0.683, error improvement 13.95 dB
+Synthetic near-end alignment: 913 samples = 19.021 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 88 us; max 301 us; total 0.370 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+DSP VALIDATION: PASS
+Scenario seed offset=819, near-end scale=0.5
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end independent colored noise (no speech recording)
+Echo only after convergence: 37.34 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 33.87 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.001, correlation 0.029, error improvement 3.61 dB
+Synthetic near-end alignment: 913 samples = 19.021 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 88 us; max 322 us; total 0.371 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+Additional scenario FAILED
+Scenario seed offset=417, near-end scale=1.5
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end modulated harmonic signal (no speech recording)
+Echo only after convergence: 37.47 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 33.93 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.689, correlation 0.877, error improvement 8.03 dB
+Synthetic near-end alignment: 914 samples = 19.042 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 86 us; max 291 us; total 0.367 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+DSP VALIDATION: PASS
+Scenario seed offset=631, near-end scale=1.5
+AEC3 stereo 48 s / 48 kHz: colored-noise reference; near-end independent colored noise (no speech recording)
+Echo only after convergence: 37.44 dB attenuation
+Acoustic delay changed 50 -> 90 ms: 34.00 dB attenuation after reconvergence
+Synthetic double talk: near-end gain 0.389, correlation 0.671, error improvement -3.44 dB
+Synthetic near-end alignment: 910 samples = 18.958 ms (NOT hardware latency)
+DSP computation, 192-sample blocks: median 0 us; p99 86 us; max 339 us; total 0.365 s for 48 s audio
+Reference missing at the end: true; engine errors: 0
+Additional scenario FAILED
+Transport: 34 channels, double buffer, 4 formats, other channels unchanged: OK.
+Full callback/FFI: framing, 34-channel preservation, immediate mute and invalid-index detection PASS.

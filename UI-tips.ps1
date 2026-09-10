@@ -1,0 +1,28 @@
+﻿# GPL-3.0-only. Hover help follows the selected language.
+$tips=New-Object Windows.Forms.ToolTip
+$tips.AutoPopDelay=20000;$tips.InitialDelay=450;$tips.ReshowDelay=150;$tips.ShowAlways=$true
+$script:tipEntries=@(
+ @($mic,'The Insert channel carrying your microphone. Channel 1 is IN1 left. Check the channel map in the guide if your mic uses another strip.','Le canal Insert qui porte votre micro. Le canal 1 correspond à IN1 gauche. Consultez le tableau du guide si votre micro utilise une autre piste.'),
+ @($refL,'The left side of the sound played by your speakers. AEC needs this as a reference. VAIO stereo uses 11 and 12. Keep your microphone out of this signal.','Le côté gauche du son joué par vos enceintes. L''AEC en a besoin comme référence. VAIO stéréo utilise 11 et 12. Ce signal ne doit pas contenir votre micro.'),
+ @($refR,'The right side of the same playback reference. Include every sound you want removed from the microphone. A different playback strip needs different channels.','Le côté droit de la même référence. Incluez tous les sons à retirer du micro. Une autre piste de lecture utilise d''autres canaux.'),
+ @($ret,'Where the cleaned microphone returns to VoiceMeeter. Use commas, for example 1,2 for IN1 left and right. Include the microphone channel and enable only these insert returns.','Où le micro traité revient dans VoiceMeeter. Séparez les canaux par des virgules : 1,2 pour IN1 gauche et droite. Incluez le canal micro et activez uniquement ces retours Insert.'),
+ @($hold,'Actually delays your microphone. Leave at 0 unless the playback reference arrives too late. Increasing it may help alignment, but also adds voice latency.','Retarde réellement votre micro. Gardez 0 sauf si la référence arrive trop tard. Augmenter cette valeur peut aider l''alignement, mais ajoute de la latence à votre voix.'),
+ @($delay,'A timing hint for the echo canceller, in milliseconds. Start at 0. This is separate from microphone hold and does not add another delay buffer.','Une indication de délai pour l''annuleur d''écho, en millisecondes. Commencez à 0. Ce réglage est distinct du maintien micro et n''ajoute pas de tampon de retard.'),
+ @($autoScope,'Watch selected strips, or all playback routes to the chosen output bus. All-strips mode excludes microphone return strips. This follows routing, not actual audio level.','Surveillez les pistes choisies ou toutes les routes vers le bus de sortie. Le mode toutes pistes exclut celles des retours micro. Il suit le routage, pas le niveau sonore réel.'),
+ @($strip,'Enter one or more strip numbers, for example 6,7,8 for VAIO, AUX and VAIO3. Auto uses AEC if any selected route is active. This does not choose or mix the audio reference.','Saisissez une ou plusieurs pistes : par exemple 6,7,8 pour VAIO, AUX et VAIO3. Auto utilise l''AEC si une route choisie est active. Cela ne choisit ni ne mélange la référence audio.'),
+ @($bus,'The hardware output bus Auto watches: A1 to A5. Choose your speaker bus. Auto uses AEC when the watched route is active and bypass when it is inactive.','Le bus de sortie matériel surveillé par Auto : A1 à A5. Choisissez le bus de vos enceintes. Auto active l''AEC si la route surveillée est active, sinon le bypass.'),
+ @($mode,'Auto follows the chosen route. Manual AEC always processes. Bypass passes the mic through with its buffering delay. Mute silences it. This choice is used at the next engine start.','Auto suit la route choisie. AEC manuel traite en permanence. Bypass transmet le micro avec son délai de tampon. Silence coupe le micro. Ce choix s''applique au prochain lancement.'),
+ @($suppression,'Gentle preserves your voice best. Balanced is a moderate step up. Strong may remove more leftover echo but can cut into your voice. It cannot fix a missing reference. Restart the engine to apply.','Douce préserve mieux votre voix. Équilibrée renforce modérément la suppression. Forte peut retirer plus d''écho, mais aussi couper votre voix. Une référence manquante ne sera pas corrigée. Relancez le moteur pour appliquer.'),
+ @($startupBox,'Starts at Windows sign-in using your saved settings, with only a tray icon. VoiceMeeter must start separately. Click Save settings to enable or disable this option. Keep the app in a permanent folder.','Démarre à la connexion Windows avec vos réglages enregistrés et une icône de notification. VoiceMeeter doit démarrer séparément. Cliquez sur Enregistrer pour activer ou désactiver cette option. Gardez l''application dans un dossier permanent.'),
+ @($save,'Saves channels, timing, starting mode, suppression and language, and updates Windows startup. Changes apply when the engine next starts; they do not change a running engine.','Mémorise les canaux, délais, mode, suppression et langue, et met à jour le démarrage Windows. Les changements s''appliquent au prochain lancement du moteur.'),
+ @($start,'Saves these settings and starts the engine quietly. Right-click the tray icon for live controls and diagnostics.','Enregistre ces réglages et lance le moteur en arrière-plan. Un clic droit sur l''icône donne accès aux commandes et diagnostics.'),
+ @($languageBox,'Switches interface language. Your audio settings stay the same. Use Save settings to remember your choice.','Change la langue de l''interface sans modifier les réglages audio. Cliquez sur Enregistrer pour mémoriser ce choix.')
+)
+function UpdateTips {
+ foreach($entry in $script:tipEntries){
+  $text=if($script:uiLanguage -eq 'fr'){$entry[2]}else{$entry[1]}
+  $tips.SetToolTip($entry[0],$text)
+  foreach($label in $form.Controls){if($label -is [Windows.Forms.Label] -and $label.Top -eq $entry[0].Top){$tips.SetToolTip($label,$text)}}
+ }
+}
+UpdateTips

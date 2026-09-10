@@ -1,0 +1,10 @@
+/target/
+/dist/
+/voicemeeter-aec.exe
+/ui-settings.json
+*.zip
+*.zip.sha256
+*.log
+*.log.previous
+/settings.json
+/settings.json.tmp
