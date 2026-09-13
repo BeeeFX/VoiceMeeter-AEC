@@ -1,36 +1,85 @@
-# VoiceMeeter AEC
+<p align="center">
+  <img src="docs/images/banner.svg" width="100%" alt="VoiceMeeter AEC — clearer conversations when you use speakers">
+</p>
 
-Experimental Windows x64 acoustic echo cancellation prefilter for VoiceMeeter Potato.
+<p align="center">
+  <a href="https://github.com/BeeeFX/VoiceMeeter-AEC/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/BeeeFX/VoiceMeeter-AEC?style=flat-square&color=20C5C7"></a>
+  <a href="https://github.com/BeeeFX/VoiceMeeter-AEC/releases"><img alt="Total downloads" src="https://img.shields.io/github/downloads/BeeeFX/VoiceMeeter-AEC/total?style=flat-square&logo=github&color=20C5C7"></a>
+  <img alt="Windows x64" src="https://img.shields.io/badge/Windows-x64-1674EA?style=flat-square&logo=windows11&logoColor=white">
+  <img alt="VoiceMeeter Potato" src="https://img.shields.io/badge/VoiceMeeter-Potato-0B7F87?style=flat-square">
+  <img alt="GPL v3" src="https://img.shields.io/badge/license-GPL--3.0-E85D5D?style=flat-square">
+</p>
 
-**English / Français:** the launcher starts in English and has a language selector. Settings are saved locally. Setup guides are available in [English](GUIDE-EN.md) and [French](GUIDE-FR.md). Diagnostics use English in both modes for consistent issue reports.
+<p align="center">
+  <a href="https://github.com/BeeeFX/VoiceMeeter-AEC/releases/latest/download/VoiceMeeter-AEC-1.0.0-Windows-x64.zip"><img alt="Download for Windows" src="https://img.shields.io/badge/Download-Windows-20C5C7?style=for-the-badge&logo=windows11&logoColor=white&labelColor=0D1925"></a>
+</p>
 
-![English launcher](docs/images/launcher-en.png)
+<p align="center">
+  <sub>Windows 10/11 x64 · Portable ZIP · No PowerShell or separate .NET install</sub><br>
+  <a href="GUIDE-EN.md">Detailed setup</a> · <a href="GUIDE-FR.md">Guide français</a> · <a href="https://github.com/BeeeFX/VoiceMeeter-AEC/releases/latest">Release notes</a>
+</p>
 
-VoiceMeeter AEC opens the installed **Voicemeeter Potato Insert Virtual ASIO** driver, feeds a selected stereo reference to the Sonora/WebRTC AEC3 engine, and returns only the selected microphone channels to the insert. It does not install drivers, change VoiceMeeter settings, capture through WASAPI, or send audio to speakers.
+VoiceMeeter AEC lets you use speakers without sending the room echo back into calls, streams, or recordings. Pick the same columns you already see in VoiceMeeter, follow the built-in guide once, and let Auto mode handle normal use.
 
-Version 0.1.3 supports **VoiceMeeter Potato only**. Gentle (the default) and Balanced pass all six synthetic AEC scenarios; Strong trades voice preservation for more aggressive suppression and fails some near-end criteria. Initial live use of 0.1.2 has been reported as working, including mute, with audible residual speaker sound. Controlled speech, acoustic, long-duration and latency measurements remain outstanding. Read the [validation results](VALIDATION-EN.md).
+![VoiceMeeter AEC setup screen](docs/images/app-setup.png)
 
-This release adds suppression choices, a tray menu, saved settings and optional Windows sign-in startup. Normal operation has no console window. See the [changelog](CHANGELOG.md) and the [documented Sonora patch](patches/README.md).
+Under the hood, the app connects to **Voicemeeter Potato Insert Virtual ASIO**, processes the microphone with Sonora/WebRTC AEC3, and returns the cleaned signal to the same VoiceMeeter strip.
 
-## Quick start
+The audio engine remains focused and low-level. The desktop app turns its channel numbers into the VoiceMeeter columns you already recognize: **IN1–IN5, VAIO, AUX, and VAIO3**. When VoiceMeeter is open, your own strip labels appear on the cards as well. Dark mode is the default, with a saved light-mode option.
 
-1. Extract the release ZIP to a permanent folder and run `Start.vbs` (CMD aliases remain available).
-2. Configure your microphone and output devices in VoiceMeeter at 48 kHz.
-3. Start in bypass with microphone input `1` and microphone returns `1,2`; verify the insert transport.
-4. Select reference `11,12` when all playback is carried by VAIO, or use the matching channels of a dedicated reference input as explained in the guide.
-5. Enable only the IN1 return in VoiceMeeter PATCH INSERT PRE-FX.
-6. Test AEC, bypass, and mute. Disable PATCH INSERT before stopping the engine.
+## Get started
 
-Auto is the default starting mode. It can watch selected strips (for example 6,7,8) or all playback routes to any hardware output bus A1–A5. It reads routing, mute, gain and solo, rather than instantaneous audio levels. The default watches VAIO strip 6 → A2; choose the output connected to your speakers. Reference channels and Auto monitoring are independent settings. Hover tips explain the controls in both languages.
+1. Download the latest **Windows x64** ZIP from [Releases](https://github.com/BeeeFX/VoiceMeeter-AEC/releases/latest), extract it to a permanent folder, and open **VoiceMeeter AEC.exe**. The .NET runtime is included.
+2. In the app, choose the microphone column, one or more playback columns whose audio becomes the echo reference, and the speaker A bus that Auto mode should watch.
+3. Open **Setup guide** inside the app, then follow its PATCH INSERT and verification steps.
+4. Select **Start echo cancellation**. Auto mode enables AEC when the chosen playback route is active and bypasses it when that route is inactive.
 
-After a successful test, choose your starting mode and suppression, enable **Start with Windows**, and **Save settings**. At sign-in the app waits for VoiceMeeter and starts the engine in the tray. VoiceMeeter must be configured separately to start and restore the tested insert routing. Disable PATCH INSERT before stopping the engine or updating the application. See the setup guide for startup, shutdown and removal details.
+Your normal controls remain available from the window and the system tray: **Auto, AEC on, Bypass, and Mute**. Settings save automatically. Optional Windows startup and tuning controls are under **Advanced**.
 
-## Build
+| Guided first run | Clean advanced controls |
+|:---:|:---:|
+| ![Integrated setup guide](docs/images/app-guide.png) | ![Advanced settings](docs/images/app-advanced.png) |
 
-`Build.cmd` builds offline, remaps local paths out of the binary, and runs unit, DSP and launcher checks. Rust 1.91+, Visual C++/Windows SDK and Windows PowerShell 5.1 are required. `Compiler.cmd` is an alias for the same workflow. The ASIO headers use the GPLv3 option; see [third-party notices](THIRD-PARTY-EN.md).
+> Before stopping the audio engine or removing the app, disable the microphone’s PATCH INSERT returns. If setup ever leaves the microphone silent, disabling those two returns immediately restores VoiceMeeter’s direct signal path.
 
-For GitHub, extract the **Source** ZIP and commit its contents. The **Windows-x64** ZIP is the runnable release asset and also includes corresponding source and licenses. Build artifacts, local settings, shortcuts and personal diagnostic logs are excluded from the source archive. Both packages are experimental; see the validation limits before labeling a release stable.
+## Why PATCH INSERT still needs one manual step
+
+Patch Insert is the audio connection the app uses; it does not determine the app’s appearance or require users to work with raw channel numbers. VoiceMeeter AEC translates its interface into named mixer columns internally.
+
+The app intentionally reads VoiceMeeter routing without changing it. This protects existing mixer setups, but it means the two microphone return switches still have to be enabled in VoiceMeeter itself. The integrated guide covers the normal setup; the detailed [English](GUIDE-EN.md) and [French](GUIDE-FR.md) guides cover less common reference and routing cases.
+
+## What it supports
+
+| | Support |
+|---|---|
+| VoiceMeeter | Potato |
+| Platform | Windows x64 |
+| Sample rate | 48 kHz |
+| Microphone source | IN1–IN5, left or right |
+| Playback reference | One or more Potato strips; VAIO, AUX, and VAIO3 are common choices |
+| AEC modes | Auto, always on, bypass, mute |
+| Suppression | Gentle, Balanced, Strong |
+| Startup | Optional per-user Windows sign-in startup |
+
+The reference must contain all audio played by your speakers and exclude the microphone. Select every relevant playback column; the engine combines their stereo pairs before AEC processing. See [Reference setup](GUIDE-EN.md#reference-the-sound-to-cancel) for details.
+
+## Validation status
+
+Gentle and Balanced pass all six synthetic AEC scenarios. Strong offers more aggressive suppression but can affect near-end voice quality. Live use has confirmed the Insert transport, controls, and mute path; controlled room, speech, long-duration, and hardware latency measurements remain in progress. See the detailed [validation results](VALIDATION-EN.md).
+
+## Build from source
+
+Requirements: Windows x64, Rust 1.91 or newer, Visual C++ with the Windows SDK, and the .NET 8 SDK or newer.
+
+```powershell
+.\Build.cmd
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Package.ps1
+```
+
+The build runs offline Rust tests, synthetic DSP checks, desktop UI checks, and creates a self-contained Windows app. Packaging produces a compact runnable ZIP and a separate source ZIP with SHA-256 files. More detail is in [PUBLISHING.md](PUBLISHING.md).
 
 ## License
 
-The project code is GPL-3.0-only. Sonora is BSD-3-Clause. The upstream Windows AEC Bridge that inspired the architecture is MIT. See [LICENSE](LICENSE) and [third-party notices](THIRD-PARTY-EN.md).
+Project code is [GPL-3.0-only](LICENSE). Sonora is BSD-3-Clause. The upstream Windows AEC Bridge that inspired the architecture is MIT. See [third-party notices](THIRD-PARTY-EN.md).
+
+VoiceMeeter AEC is an independent project and is not affiliated with VB-Audio or Steinberg.

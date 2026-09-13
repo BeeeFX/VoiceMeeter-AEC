@@ -1,6 +1,6 @@
-# VoiceMeeter AEC 0.1.3 — validation
+# VoiceMeeter AEC 1.0.0 — validation
 
-[Français](VALIDATION.md) · Version 0.1.3
+[Français](VALIDATION.md) · Version 1.0.0
 
 This remains an experimental release. The automated checks pass for Gentle and Balanced. **Strong deliberately exposes the original, more aggressive suppressor and fails some near-end preservation checks.** Passing synthetic tests does not establish transparent speech or production stability.
 
@@ -46,4 +46,4 @@ No live audio stream, sign-out or reboot was performed for this update. Real sig
 
 Host arrays have fixed capacity and there are no host allocations, logging or Remote calls in the audio callback. Sonora's internal allocation behavior is not instrumented. Its upstream dev-test suite was not run because dev dependencies are outside the vendored application graph; the patch is covered by the application's integration and quality scenarios.
 
-Compatibility target: Windows x64, VoiceMeeter Potato with its Insert x64 driver, 48 kHz, and the Visual C++ x64 runtime. The launcher requires Windows PowerShell 5.1 and .NET Framework WinForms. The binary is unsigned. No other VoiceMeeter edition is claimed supported.
+Compatibility target: Windows x64, VoiceMeeter Potato with its Insert x64 driver, 48 kHz, and the Visual C++ x64 runtime. The desktop app is published self-contained, so users do not need to install .NET or run PowerShell. The binaries are unsigned. No other VoiceMeeter edition is claimed supported.

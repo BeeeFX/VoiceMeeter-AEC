@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="500" viewBox="0 0 1600 500" role="img" aria-labelledby="title description">
+  <title id="title">VoiceMeeter AEC</title>
+  <desc id="description">Clearer conversations when you use speakers.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#09131f" />
+      <stop offset="1" stop-color="#0d2030" />
+    </linearGradient>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d2440" />
+      <stop offset="1" stop-color="#08172b" />
+    </linearGradient>
+    <clipPath id="bannerClip"><rect width="1600" height="500" rx="28" /></clipPath>
+  </defs>
+
+  <g clip-path="url(#bannerClip)">
+    <rect width="1600" height="500" fill="url(#background)" />
+    <path d="M-40 338 C180 178 350 386 566 230 S934 94 1152 244 1420 357 1650 166" fill="none" stroke="#24d8df" stroke-width="3" opacity=".13" />
+    <path d="M-60 365 C170 205 356 410 575 258 S938 123 1156 269 1424 386 1660 193" fill="none" stroke="#24d8df" stroke-width="1.5" opacity=".08" />
+    <path d="M-60 310 C168 151 344 360 556 203 S925 66 1148 217 1411 329 1650 140" fill="none" stroke="#24d8df" stroke-width="1.5" opacity=".08" />
+    <circle cx="1472" cy="112" r="6" fill="#ff665f" />
+    <circle cx="1424" cy="112" r="3" fill="#24d8df" opacity=".7" />
+
+    <g transform="translate(112 94)">
+      <rect width="312" height="312" rx="70" fill="url(#tile)" stroke="#173450" stroke-width="2" />
+      <circle cx="156" cy="156" r="15" fill="#ff665f" />
+      <path d="M119 124 C101 142 101 170 119 188" fill="none" stroke="#31e3ea" stroke-width="22" stroke-linecap="round" />
+      <path d="M193 124 C211 142 211 170 193 188" fill="none" stroke="#31e3ea" stroke-width="22" stroke-linecap="round" />
+      <path d="M84 89 C47 126 47 186 84 223" fill="none" stroke="#31e3ea" stroke-width="25" stroke-linecap="round" />
+      <path d="M228 89 C265 126 265 186 228 223" fill="none" stroke="#31e3ea" stroke-width="25" stroke-linecap="round" />
+      <path d="M48 53 C-9 110 -9 202 48 259" fill="none" stroke="#31e3ea" stroke-width="28" stroke-linecap="round" />
+      <path d="M264 53 C321 110 321 202 264 259" fill="none" stroke="#31e3ea" stroke-width="28" stroke-linecap="round" />
+    </g>
+
+    <g font-family="Segoe UI, Inter, Arial, sans-serif">
+      <text x="500" y="228" fill="#f5f8fa" font-size="94" font-weight="700" letter-spacing="-3">VoiceMeeter AEC</text>
+      <text x="505" y="294" fill="#a9bdcc" font-size="32" font-weight="400">Clearer conversations when you use speakers.</text>
+      <g transform="translate(505 337)" font-size="17" font-weight="600" letter-spacing="1">
+        <rect width="151" height="42" rx="21" fill="#142b3c" stroke="#27485c" />
+        <text x="75.5" y="27" text-anchor="middle" fill="#b9c9d4">WINDOWS x64</text>
+        <rect x="165" width="224" height="42" rx="21" fill="#142b3c" stroke="#27485c" />
+        <text x="277" y="27" text-anchor="middle" fill="#b9c9d4">POTATO INSERT</text>
+        <rect x="403" width="112" height="42" rx="21" fill="#12373d" stroke="#20c5c7" />
+        <text x="459" y="27" text-anchor="middle" fill="#89e7e9">48 kHz</text>
+      </g>
+    </g>
+  </g>
+</svg>

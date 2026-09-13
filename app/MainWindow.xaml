@@ -1,0 +1,285 @@
+<Window x:Class="VoiceMeeterAEC.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="VoiceMeeter AEC" Width="1120" Height="790" MinWidth="1000" MinHeight="700"
+        WindowStartupLocation="CenterScreen" Background="{DynamicResource WindowBackground}"
+        Foreground="{DynamicResource Ink}"
+        FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13"
+        Icon="Assets/app.ico">
+  <Grid Background="{DynamicResource WindowBackground}">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="246" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+
+    <Border Grid.Column="0" Background="{DynamicResource SidebarBackground}" BorderBrush="{DynamicResource CardBorder}" BorderThickness="0,0,1,0">
+      <Grid Margin="18">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" Margin="8,8,4,28">
+          <Image Source="Assets/app-icon-256.png" Width="48" Height="48" Stretch="Uniform" />
+          <StackPanel Margin="12,3,0,0">
+            <TextBlock Text="VoiceMeeter" Foreground="White" FontSize="17" FontWeight="SemiBold" />
+            <TextBlock Text="AEC" Foreground="{DynamicResource Accent}" FontSize="15" FontWeight="SemiBold" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1">
+          <Button x:Name="SetupNavButton" Style="{StaticResource NavButton}" Tag="active" Click="SetupNav_Click">
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition /></Grid.ColumnDefinitions><TextBlock Text="&#xE80F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" /><TextBlock x:Name="SetupNavText" Grid.Column="1" Text="Setup" Margin="10,0,0,0" VerticalAlignment="Center" /></Grid>
+          </Button>
+          <Button x:Name="AdvancedNavButton" Style="{StaticResource NavButton}" Margin="0,5,0,0" Click="AdvancedNav_Click">
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition /></Grid.ColumnDefinitions><TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" /><TextBlock x:Name="AdvancedNavText" Grid.Column="1" Text="Advanced" Margin="10,0,0,0" VerticalAlignment="Center" /></Grid>
+          </Button>
+          <Button x:Name="DiagnosticsNavButton" Style="{StaticResource NavButton}" Margin="0,5,0,0" Click="DiagnosticsNav_Click">
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition /></Grid.ColumnDefinitions><TextBlock Text="&#xE9D9;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" /><TextBlock x:Name="DiagnosticsNavText" Grid.Column="1" Text="Diagnostics" Margin="10,0,0,0" VerticalAlignment="Center" /></Grid>
+          </Button>
+          <Button x:Name="GuideNavButton" Style="{StaticResource NavButton}" Margin="0,5,0,0" Click="GuideNav_Click">
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition /></Grid.ColumnDefinitions><TextBlock Text="&#xE736;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" /><TextBlock x:Name="GuideNavText" Grid.Column="1" Text="Setup guide" Margin="10,0,0,0" VerticalAlignment="Center" /></Grid>
+          </Button>
+        </StackPanel>
+
+        <StackPanel Grid.Row="3" Margin="8,0,8,7">
+          <Button x:Name="ThemeButton" Content="☀  Light mode" Style="{StaticResource NavButton}" Padding="0,9" Click="Theme_Click" />
+          <TextBlock x:Name="LanguageLabel" Text="Language" Foreground="{DynamicResource SubtleInk}" Margin="0,12,0,6" FontSize="11" />
+          <ComboBox x:Name="LanguageBox" SelectedIndex="0" SelectionChanged="LanguageBox_SelectionChanged">
+            <ComboBoxItem Content="English" Tag="en" />
+            <ComboBoxItem Content="Français" Tag="fr" />
+          </ComboBox>
+          <TextBlock Text="Independent project · Potato · 48 kHz" Foreground="{DynamicResource SubtleInk}" FontSize="10" Margin="0,16,0,0" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Column="1">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="76" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="80" />
+      </Grid.RowDefinitions>
+
+      <Border Background="{DynamicResource SurfaceBackground}" BorderBrush="{DynamicResource CardBorder}" BorderThickness="0,0,0,1">
+        <Grid Margin="30,0">
+          <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock x:Name="HeaderTitle" Text="Setup" FontSize="20" FontWeight="SemiBold" />
+            <TextBlock x:Name="HeaderSubtitle" Text="Match the columns already visible in VoiceMeeter." Foreground="{DynamicResource MutedInk}" Margin="0,3,0,0" />
+          </StackPanel>
+          <Border Grid.Column="1" Background="{DynamicResource StatusBackground}" CornerRadius="18" Padding="12,7" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal">
+              <Ellipse x:Name="StatusDot" Width="9" Height="9" Fill="#90A0AE" Margin="0,0,7,0" VerticalAlignment="Center" />
+              <TextBlock x:Name="StatusText" Text="Ready" Foreground="{DynamicResource MutedInk}" FontWeight="SemiBold" />
+            </StackPanel>
+          </Border>
+        </Grid>
+      </Border>
+
+      <Grid Grid.Row="1">
+        <ScrollViewer x:Name="SetupView" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="30,24,22,24">
+          <StackPanel>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+              <StackPanel>
+                <TextBlock x:Name="MicHeading" Text="1  Where is your microphone?" FontWeight="SemiBold" FontSize="16" />
+                <TextBlock x:Name="MicHelp" Text="Pick its hardware input column." Foreground="{DynamicResource MutedInk}" Margin="0,5,0,14" />
+                <WrapPanel x:Name="MicStripPanel" />
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+              <StackPanel>
+                <TextBlock x:Name="ReferenceHeading" Text="2  Which columns carry your speaker audio?" FontWeight="SemiBold" FontSize="16" />
+                <TextBlock x:Name="ReferenceHelp" Text="AEC uses their audio as its reference—the speaker sound it should remove from your microphone. Select one or more." Foreground="{DynamicResource MutedInk}" Margin="0,5,0,14" TextWrapping="Wrap" />
+                <WrapPanel x:Name="ReferenceStripPanel" />
+                <Border Background="{DynamicResource WarningBackground}" CornerRadius="8" Padding="11" Margin="0,4,0,0">
+                  <TextBlock x:Name="ReferenceWarning" Text="Do not select your microphone column, or AEC may suppress your voice." Foreground="{DynamicResource WarningText}" TextWrapping="Wrap" />
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+              <StackPanel>
+                <TextBlock x:Name="BusHeading" Text="3  Which A bus feeds your speakers?" FontWeight="SemiBold" FontSize="16" />
+                <TextBlock x:Name="BusHelp" Text="This tells Auto which speaker bus to watch. AEC turns on when a watched playback column is routed to this bus." Foreground="{DynamicResource MutedInk}" Margin="0,5,0,14" TextWrapping="Wrap" />
+                <StackPanel x:Name="BusPanel" Orientation="Horizontal" />
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,8">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <StackPanel>
+                  <TextBlock x:Name="PatchHeading" Text="Connect the cleaned microphone" FontWeight="SemiBold" FontSize="15" />
+                  <TextBlock x:Name="PatchText" Text="In PATCH INSERT, enable PRE-FX L and R only for the microphone strip. The in-app guide shows every step." Foreground="{DynamicResource MutedInk}" Margin="0,5,16,0" TextWrapping="Wrap" MaxWidth="550" />
+                </StackPanel>
+                <Border Grid.Column="1" Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" CornerRadius="9" Padding="12,9">
+                  <StackPanel Orientation="Horizontal">
+                    <StackPanel><TextBlock Text="L" Foreground="{DynamicResource SubtleInk}" HorizontalAlignment="Center" /><Border Background="{DynamicResource Accent}" Width="26" Height="19" CornerRadius="5" Margin="0,4,5,0"><TextBlock Text="✓" Foreground="{DynamicResource PrimaryText}" HorizontalAlignment="Center" /></Border></StackPanel>
+                    <StackPanel><TextBlock Text="R" Foreground="{DynamicResource SubtleInk}" HorizontalAlignment="Center" /><Border Background="{DynamicResource Accent}" Width="26" Height="19" CornerRadius="5" Margin="0,4,0,0"><TextBlock Text="✓" Foreground="{DynamicResource PrimaryText}" HorizontalAlignment="Center" /></Border></StackPanel>
+                  </StackPanel>
+                </Border>
+              </Grid>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <ScrollViewer x:Name="GuideView" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="30,24,22,24">
+          <StackPanel>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <StackPanel Margin="0,0,22,0">
+                  <TextBlock x:Name="GuideFlowHeading" Text="What the app connects" FontSize="16" FontWeight="SemiBold" />
+                  <TextBlock x:Name="GuideFlowText" Text="Your playback is the echo reference. The engine compares it with the raw mic and returns a cleaned mic signal." Foreground="{DynamicResource MutedInk}" TextWrapping="Wrap" Margin="0,5,0,0" MaxWidth="510" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                  <Border Background="{DynamicResource ControlBackground}" CornerRadius="8" Padding="11,8"><TextBlock x:Name="FlowPlayback" Text="Speaker audio" /></Border>
+                  <TextBlock Text="  →  " Foreground="{DynamicResource Accent}" FontSize="18" VerticalAlignment="Center" />
+                  <Border Background="{DynamicResource AccentSoft}" BorderBrush="{DynamicResource Accent}" BorderThickness="1" CornerRadius="8" Padding="11,8"><TextBlock Text="AEC" Foreground="{DynamicResource AccentText}" FontWeight="SemiBold" /></Border>
+                  <TextBlock Text="  →  " Foreground="{DynamicResource Accent}" FontSize="18" VerticalAlignment="Center" />
+                  <Border Background="{DynamicResource ControlBackground}" CornerRadius="8" Padding="11,8"><TextBlock x:Name="FlowCleanMic" Text="Clean mic" /></Border>
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+              <StackPanel>
+                <TextBlock x:Name="GuideStep1Heading" Text="1  Prepare VoiceMeeter" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock x:Name="GuideStep1Text" Text="Open VoiceMeeter Potato and confirm the sample rate is 48 kHz. Keep PATCH INSERT off while choosing settings." Foreground="{DynamicResource MutedInk}" TextWrapping="Wrap" Margin="0,6,0,0" />
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+              <StackPanel>
+                <TextBlock x:Name="GuideStep2Heading" Text="2  Match the three columns" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock x:Name="GuideStep2Text" Text="Playback columns provide the audio reference AEC removes from your mic. The A bus is only the route Auto watches to decide when AEC should be active." Foreground="{DynamicResource MutedInk}" TextWrapping="Wrap" Margin="0,6,0,12" />
+                <Border Background="{DynamicResource WarningBackground}" CornerRadius="8" Padding="11">
+                  <TextBlock x:Name="GuideReferenceRule" Text="Reference rule: include all speaker audio and exclude your microphone." Foreground="{DynamicResource WarningText}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+              <StackPanel>
+                <TextBlock x:Name="GuideStep3Heading" Text="3  Start and verify" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock x:Name="GuideStep3Text" Text="Start echo cancellation. In Diagnostics, confirm 48 kHz and that audio blocks keep advancing before you connect the return." Foreground="{DynamicResource MutedInk}" TextWrapping="Wrap" Margin="0,6,0,0" />
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,8">
+              <StackPanel>
+                <TextBlock x:Name="GuideStep4Heading" Text="4  Enable PATCH INSERT" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock x:Name="GuideStep4Text" Text="Open Menu → System Settings / Options → PATCH INSERT. Enable PRE-FX L and R only for your microphone strip, then test AEC, Bypass and Mute." Foreground="{DynamicResource MutedInk}" TextWrapping="Wrap" Margin="0,6,0,12" />
+                <TextBlock x:Name="PatchWhereText" Text="Your microphone is IN1 — enable the two highlighted boxes (Left and Right)." Foreground="{DynamicResource AccentText}" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <Border Background="#0C202D" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" CornerRadius="9" Padding="8" HorizontalAlignment="Left" Margin="0,0,0,12">
+                  <Canvas Width="534" Height="157" ClipToBounds="True">
+                    <Image Source="Assets/voicemeeter-patch-insert.png" Width="534" Height="157" Stretch="None" />
+                    <!-- The supplied screenshot has IN1 enabled. Neutralize it so the selected strip can be highlighted dynamically. -->
+                    <Border Canvas.Left="22" Canvas.Top="97" Width="42" Height="36" Background="#102936" />
+                    <Border Canvas.Left="25" Canvas.Top="101" Width="12" Height="29" BorderBrush="#718793" BorderThickness="1" />
+                    <Border Canvas.Left="49" Canvas.Top="101" Width="12" Height="29" BorderBrush="#718793" BorderThickness="1" />
+                    <Border x:Name="PatchLeftBox" Canvas.Left="25" Canvas.Top="101" Width="12" Height="29" Background="{DynamicResource Accent}" BorderBrush="{DynamicResource AccentHover}" BorderThickness="1">
+                      <TextBlock Text="✓" Foreground="{DynamicResource PrimaryText}" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <Border x:Name="PatchRightBox" Canvas.Left="49" Canvas.Top="101" Width="12" Height="29" Background="{DynamicResource Accent}" BorderBrush="{DynamicResource AccentHover}" BorderThickness="1">
+                      <TextBlock Text="✓" Foreground="{DynamicResource PrimaryText}" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                  </Canvas>
+                </Border>
+                <Border Background="{DynamicResource InfoBackground}" CornerRadius="8" Padding="11">
+                  <TextBlock x:Name="GuideStopRule" Text="Before stopping the engine, switch those two PATCH INSERT buttons off." Foreground="{DynamicResource InfoText}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                </Border>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <ScrollViewer x:Name="AdvancedView" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="30,24,22,24">
+          <StackPanel>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+              <StackPanel>
+                <TextBlock x:Name="BehaviourHeading" Text="Behaviour" FontSize="16" FontWeight="SemiBold" />
+                <Grid Margin="0,17,0,0">
+                  <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="240" /></Grid.ColumnDefinitions>
+                  <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                  <StackPanel Margin="0,0,18,16"><TextBlock x:Name="SuppressionLabel" Text="Echo suppression" FontWeight="SemiBold" /><TextBlock x:Name="SuppressionHelp" Text="Gentle preserves your voice best." Foreground="{DynamicResource MutedInk}" Margin="0,3,0,0" /></StackPanel>
+                  <ComboBox x:Name="SuppressionBox" Grid.Column="1" Margin="0,0,0,12" VerticalAlignment="Top" SelectedIndex="0" SelectionChanged="SettingChanged"><ComboBoxItem Content="Gentle" Tag="gentle" /><ComboBoxItem Content="Balanced" Tag="balanced" /><ComboBoxItem Content="Strong" Tag="strong" /></ComboBox>
+                  <StackPanel Grid.Row="1" Margin="0,0,18,16"><TextBlock x:Name="StartModeLabel" Text="Mode when the app starts" FontWeight="SemiBold" /><TextBlock x:Name="StartModeHelp" Text="Auto is recommended for everyday use." Foreground="{DynamicResource MutedInk}" Margin="0,3,0,0" /></StackPanel>
+                  <ComboBox x:Name="StartModeBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,12" VerticalAlignment="Top" SelectedIndex="2" SelectionChanged="SettingChanged"><ComboBoxItem Content="Bypass" Tag="bypass" /><ComboBoxItem Content="AEC always on" Tag="aec" /><ComboBoxItem Content="Auto (recommended)" Tag="auto" /><ComboBoxItem Content="Mute microphone" Tag="mute" /></ComboBox>
+                  <StackPanel Grid.Row="2" Margin="0,0,18,0"><TextBlock x:Name="MicSideLabel" Text="Microphone side" FontWeight="SemiBold" /><TextBlock x:Name="MicSideHelp" Text="Most mono microphones arrive on the left." Foreground="{DynamicResource MutedInk}" Margin="0,3,0,0" /></StackPanel>
+                  <ComboBox x:Name="MicSideBox" Grid.Row="2" Grid.Column="1" VerticalAlignment="Top" SelectedIndex="0" SelectionChanged="SettingChanged"><ComboBoxItem Content="Left" Tag="left" /><ComboBoxItem Content="Right" Tag="right" /></ComboBox>
+                </Grid>
+                <Border Background="{DynamicResource WarningBackground}" CornerRadius="8" Padding="11" Margin="0,17,0,0">
+                  <TextBlock x:Name="RestartNote" Text="Engine settings apply the next time it starts." Foreground="{DynamicResource WarningText}" />
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+              <StackPanel>
+                <TextBlock x:Name="AutoHeading" Text="Auto mode" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock x:Name="AutoHelp" Text="Watch these VoiceMeeter columns. AEC turns on when any selected column is routed to your speaker bus." Foreground="{DynamicResource MutedInk}" TextWrapping="Wrap" Margin="0,5,0,14" />
+                <WrapPanel x:Name="AutoStripPanel" />
+                <CheckBox x:Name="WatchAllBox" Content="Watch every playback column routed to the selected A bus" Margin="0,9,0,0" Checked="SettingChanged" Unchecked="SettingChanged" />
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+              <StackPanel>
+                <TextBlock x:Name="TimingHeading" Text="Timing" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock x:Name="TimingHelp" Text="Leave both at zero unless you are correcting a measured alignment problem." Foreground="{DynamicResource MutedInk}" Margin="0,5,0,16" />
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="52" /></Grid.ColumnDefinitions>
+                  <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                  <TextBlock x:Name="HoldLabel" Text="Microphone hold" FontWeight="SemiBold" />
+                  <TextBlock x:Name="HoldValue" Grid.Column="1" Text="0 ms" HorizontalAlignment="Right" Foreground="{DynamicResource Accent}" />
+                  <Slider x:Name="HoldSlider" Grid.Row="1" Grid.ColumnSpan="2" Minimum="0" Maximum="250" TickFrequency="1" ValueChanged="TimingChanged" />
+                  <TextBlock x:Name="DelayLabel" Grid.Row="2" Text="AEC delay estimate" FontWeight="SemiBold" Margin="0,15,0,0" />
+                  <TextBlock x:Name="DelayValue" Grid.Row="2" Grid.Column="1" Text="0 ms" HorizontalAlignment="Right" Foreground="{DynamicResource Accent}" Margin="0,15,0,0" />
+                  <Slider x:Name="DelaySlider" Grid.Row="3" Grid.ColumnSpan="2" Minimum="0" Maximum="500" TickFrequency="1" ValueChanged="TimingChanged" />
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,8">
+              <StackPanel>
+                <CheckBox x:Name="StartupBox" Content="Start VoiceMeeter AEC when I sign in to Windows" Checked="SettingChanged" Unchecked="SettingChanged" />
+                <TextBlock x:Name="StartupHelp" Text="The app starts quietly in the system tray and waits for VoiceMeeter." Foreground="{DynamicResource MutedInk}" Margin="25,5,0,0" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <Grid x:Name="DiagnosticsView" Visibility="Collapsed" Margin="30,24,22,24">
+          <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+          <Border Background="{DynamicResource InfoBackground}" CornerRadius="12" Padding="15" Margin="0,0,0,14">
+            <TextBlock x:Name="DiagnosticsHelp" Text="Technical activity from the audio engine. Useful when setup is not working." Foreground="{DynamicResource InfoText}" />
+          </Border>
+          <Border Grid.Row="1" Background="{DynamicResource DiagnosticsBackground}" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" CornerRadius="13" Padding="16">
+            <TextBox x:Name="DiagnosticsBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Background="Transparent" Foreground="{DynamicResource DiagnosticsText}" BorderThickness="0" FontFamily="Cascadia Mono, Consolas" FontSize="12" />
+          </Border>
+        </Grid>
+      </Grid>
+
+      <Border Grid.Row="2" Background="{DynamicResource SurfaceBackground}" BorderBrush="{DynamicResource CardBorder}" BorderThickness="0,1,0,0">
+        <Grid Margin="30,0">
+          <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <Button x:Name="AutoModeButton" Content="Auto" Style="{StaticResource SecondaryButton}" Padding="15,9" Margin="0,0,7,0" Click="AutoMode_Click" IsEnabled="False" />
+            <Button x:Name="AecModeButton" Content="AEC on" Style="{StaticResource SecondaryButton}" Padding="15,9" Margin="0,0,7,0" Click="AecMode_Click" IsEnabled="False" />
+            <Button x:Name="BypassModeButton" Content="Bypass" Style="{StaticResource SecondaryButton}" Padding="15,9" Margin="0,0,7,0" Click="BypassMode_Click" IsEnabled="False" />
+            <Button x:Name="MuteModeButton" Content="Mute" Style="{StaticResource SecondaryButton}" Padding="15,9" Click="MuteMode_Click" IsEnabled="False" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+            <TextBlock x:Name="UnsavedText" Text="Settings saved automatically" Foreground="{DynamicResource MutedInk}" VerticalAlignment="Center" Margin="0,0,16,0" />
+            <Button x:Name="EngineButton" Content="Start echo cancellation" Style="{StaticResource PrimaryButton}" MinWidth="205" Click="Engine_Click" />
+          </StackPanel>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</Window>

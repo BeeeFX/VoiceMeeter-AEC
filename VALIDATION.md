@@ -1,6 +1,6 @@
-# VoiceMeeter AEC 0.1.3 — validation
+# VoiceMeeter AEC 1.0.0 — validation
 
-[English](VALIDATION-EN.md) · Version 0.1.3
+[English](VALIDATION-EN.md) · Version 1.0.0
 
 Version expérimentale. Les contrôles passent pour Douce et Équilibrée. **Forte expose la suppression d'origine, plus agressive, et échoue à certains critères de préservation du signal proche.** Des tests synthétiques réussis ne prouvent ni une voix transparente ni une stabilité de production.
 
@@ -46,4 +46,4 @@ Aucun flux audio réel, déconnexion Windows ou redémarrage n'a été effectué
 
 Les tableaux du programme ont une capacité fixe ; aucun appel Remote, journal ni allocation du programme dans le callback audio. Les allocations internes Sonora ne sont pas instrumentées. Sa suite de développement complète n'a pas été lancée car ces dépendances ne sont pas incluses ; le correctif est couvert par les scénarios et tests d'intégration de l'application.
 
-Cible : Windows x64, VoiceMeeter Potato avec pilote Insert x64, 48 kHz, runtime Visual C++ x64. Lanceur : PowerShell 5.1 et WinForms .NET Framework. Binaire non signé. Aucune autre édition VoiceMeeter n'est déclarée compatible.
+Cible : Windows x64, VoiceMeeter Potato avec pilote Insert x64, 48 kHz et runtime Visual C++ x64. L'application de bureau est autonome : les utilisateurs n'ont pas besoin d'installer .NET ni de lancer PowerShell. Les binaires ne sont pas signés. Aucune autre édition VoiceMeeter n'est déclarée compatible.

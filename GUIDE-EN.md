@@ -1,41 +1,28 @@
 # VoiceMeeter AEC — Windows x64 setup
 
-[Français](GUIDE-FR.md) · Version 0.1.3 · Windows x64 · VoiceMeeter Potato
+[Français](GUIDE-FR.md) · Version 1.0.0 · Windows x64 · VoiceMeeter Potato
 
 VoiceMeeter AEC attenuates speaker playback picked up by a microphone. It processes the microphone through **Voicemeeter Potato Insert Virtual ASIO**, before VoiceMeeter strip effects. VoiceMeeter retains control of the hardware. The app does not change routes, patch settings or Windows default devices.
 
 ## First setup
 
-1. Extract the Windows release into a permanent writable folder. Open **Start.vbs** for a launch without a console. Start.cmd and Demarrer.cmd are compatibility shortcuts. If Windows Script Host is unavailable, run `powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File .\Lanceur.ps1`.
-2. Run VoiceMeeter Potato at **48 kHz** and configure its microphone and outputs. The example assumes a microphone on IN1; adapt the channels using the table below.
-3. Leave the microphone PATCH INSERT returns disabled initially. Select microphone **1**, returns **1,2**, hold **0 ms**, delay estimate **0 ms**, and a playback reference that excludes your microphone.
-4. The default starting mode is **Auto**. For the initial transport check choose **Bypass**, then **Open engine**. This saves the settings and starts the engine without a console. Hover over settings for simple explanations.
-5. Check the running status. Right-click the tray icon near the clock and open **Diagnostics**: the Insert driver should be at 48 kHz and the `blocks` counter should advance. The driver accepts one Insert client at a time.
-6. Enable only the microphone return channels in VoiceMeeter **PATCH INSERT**, at the PRE-FX insert point. For IN1: its left/right return switches. Leave other insert returns disabled.
-7. In an application receiving the chosen VoiceMeeter microphone bus, select **Mute microphone** in the tray menu. The received microphone should become silent. Then try **Bypass** and **Manual AEC**, keeping the microphone out of speaker outputs.
-8. Play speech through speakers, allow around 10–20 seconds for adaptation, and compare bypass/AEC at matching levels. Speak over the playback and check voice clarity. Some residual echo can remain.
+1. Extract the Windows release into a permanent folder and open **VoiceMeeter AEC.exe**. It is a self-contained Windows app; no PowerShell or .NET installation is needed.
+2. Run VoiceMeeter Potato at **48 kHz** and configure its microphone and speaker output as usual.
+3. In the app, select the VoiceMeeter column containing your microphone and one or more playback columns containing every sound played through your speakers. Their audio becomes the echo reference. Select the A bus connected to those speakers so Auto mode knows which route to watch. The app converts column names to Insert channels automatically.
+4. Leave the microphone PATCH INSERT returns disabled and select **Start echo cancellation**. Open **Diagnostics** and confirm that the Insert driver reports 48 kHz and the `blocks` counter advances. The driver accepts one Insert client at a time.
+5. In VoiceMeeter, open **Menu → System Settings / Options → PATCH INSERT**. At the PRE-FX insert point, enable left and right only for the microphone column. Leave every other return disabled.
+6. In an application receiving your VoiceMeeter microphone bus, try **Mute**, **Bypass**, and **AEC on** from the app or tray menu. Keep the microphone out of your speaker routes.
+7. Play speech through speakers, allow around 10–20 seconds for adaptation, and compare bypass/AEC at matching levels. Speak over the playback and check voice clarity. Some residual echo can remain.
 
 **Disable the microphone PATCH INSERT returns before stopping the engine or updating the app.** If a fault leaves the microphone silent, disabling those returns restores VoiceMeeter's direct path. The app never changes them automatically.
 
 ## Reference: the sound to cancel
 
-The reference must contain every playback source whose acoustic echo should be removed, and exclude the raw or processed microphone. Auto monitoring and the reference are independent.
+The reference must contain every playback source whose acoustic echo should be removed, and exclude the raw or processed microphone. Select as many playback columns as needed. The app combines the first stereo pair from each selected column into the reference sent to AEC.
 
-For a simple configuration, route all speaker playback through **VAIO**, in stereo, and use reference **11,12**. Audio on AUX, VAIO3, other hardware strips or devices used directly outside VoiceMeeter is absent from that pair. Additional surround channels are also absent. The app accepts one stereo reference pair and does not mix reference strips itself.
+For a simple configuration where all playback passes through **VAIO**, select only VAIO. If speaker audio is split across VAIO, AUX, VAIO3 or hardware strips, select every relevant column. Sources played directly outside VoiceMeeter cannot be included. Only the first left/right pair of each virtual strip is used; additional surround channels are not included.
 
 The Insert signal is before effects and faders, not the final output-bus mix. Different effects, clipping or abrupt volume changes between reference and speakers can reduce cancellation.
-
-### Optional combined reference
-
-A virtual audio cable can collect several playback strips into one stereo reference. This is an example, not a required device or preconfigured route:
-
-1. Assign an **unused** hardware output bus to the cable's playback endpoint.
-2. Send the intended speaker-playback strips to that bus, matching relative listening levels. Exclude the microphone and every processed microphone return.
-3. On a genuinely free hardware input strip, select the cable's recording endpoint. Do not replace an occupied input. Disable **all A and B sends** on this reference strip and leave its PATCH INSERT return disabled.
-4. Use that strip's left/right channels as the reference; for example **IN5 = 9,10**. Never send this strip back to the cable bus, which would create a loop.
-5. Playback should change `ref` in diagnostics; speaking alone with playback stopped should not.
-
-The cable adds reference latency. Microphone hold may help a late reference, but also delays your voice. Start at 0 and verify the reference before increasing it. Prefer a direct virtual-input reference when it covers the playback. This optional route has not received controlled acoustic validation.
 
 ## Channel map and Auto
 
@@ -52,13 +39,13 @@ Numbers start at 1 and refer to Potato Insert channels, not sound-card channels.
 | AUX | 19–26; stereo 19,20 | 7 |
 | VAIO3 | 27–34; stereo 27,28 | 8 |
 
-**Selected strips:** enter a list such as `6,7,8`. AEC is on if any selected strip has an active route to the chosen output bus. The default is strip 6 to A2; choose the bus actually connected to your speakers.
+**Selected strips:** under Advanced, select columns such as VAIO, AUX and VAIO3. AEC is on if any selected strip has an active route to the chosen output bus. The default is VAIO to A2; choose the bus actually connected to your speakers.
 
 **All strips to output bus:** watch routes from all eight strips to A1, A2, A3, A4 or A5, excluding strips receiving the configured microphone returns. If other strips contain processed microphone returns, use Selected strips to exclude those too.
 
 Auto reads route buttons, mute, strip/bus gain, bus-specific gain and solo. It follows **routing, not instantaneous audio level**. Silence on an active route does not turn Auto off. When all watched routes are inactive it selects bypass. If routing cannot be read, it keeps AEC on. It does not switch output devices or change routes.
 
-Tray AEC, Bypass and Mute override Auto; choose Auto again to resume. Live controls do not overwrite the saved starting mode. Watching multiple strips does not add them to the audio reference.
+Tray AEC, Bypass and Mute override Auto; choose Auto again to resume. Live controls do not overwrite the saved starting mode. Auto monitoring choices can be edited independently under Advanced and do not change the selected audio-reference columns.
 
 ## Suppression and timing
 
@@ -76,15 +63,15 @@ The host adds 480 samples / 10 ms of framing, plus hold, even in bypass. AEC add
 
 ## Tray, settings and Windows startup
 
-Closing settings hides the window and leaves audio running. Double-click the tray icon or reopen Start.vbs to restore it. Right-click for AEC, Bypass, Mute, Auto, Stop engine, Diagnostics and Exit. Diagnostics are English in both languages. The icon tooltip shows status; Windows may place it under the hidden-icons arrow.
+Closing the window while audio is running leaves the engine in the system tray. Double-click the custom tray icon or reopen **VoiceMeeter AEC.exe** to restore it. Right-click for AEC, Bypass, Mute, Auto, Diagnostics and Exit. Diagnostics are English in both languages. The icon tooltip shows status; Windows may place it under the hidden-icons arrow.
 
-After testing, choose Auto or the desired starting mode, check **Start with Windows**, and **Save settings**. At sign-in, only the tray icon appears. The app waits for VoiceMeeter and starts using saved settings, with no Command Prompt window. Configure VoiceMeeter separately to start and restore the tested 48 kHz configuration and insert routing.
+Settings save automatically. After testing, choose Auto or the desired starting mode under **Advanced**, then enable **Start with Windows** if wanted. At sign-in, only the tray icon appears. The app waits for VoiceMeeter and starts using saved settings. Configure VoiceMeeter separately to start and restore the tested 48 kHz configuration and insert routing.
 
 It waits up to 90 seconds for VoiceMeeter and retries selected initial driver failures at five-second intervals. Failure is reported through the tray. It does not endlessly restart after a crash; native driver reset/stall recovery stays limited to two attempts. A driver call that itself hangs may exceed the startup waiting deadline.
 
-Settings are in `%LOCALAPPDATA%\VoiceMeeterAEC\settings.json`: channels, Auto scope/strips/bus, timing, starting mode, suppression and language. **Save settings** and **Open engine** save them. Saving does not reconfigure a running engine. Disable PATCH INSERT, stop the engine, then reopen it to apply changes.
+Settings are in `%LOCALAPPDATA%\VoiceMeeterAEC\settings.json`: selected columns, Auto scope, speaker bus, timing, starting mode, suppression and language. They save automatically. Changes that affect engine startup apply the next time the engine starts; disable PATCH INSERT, stop, and reopen it first.
 
-Startup uses the current user's `VoiceMeeter AEC.lnk` in the Windows Startup folder, with no administrator rights or service. Uncheck the option and save to remove it. After moving or upgrading the app, open the new copy and save to update the shortcut. Existing saved modes are preserved; the new Auto default does not override them.
+Startup uses the current user's Windows Run setting, with no administrator rights or service. Disable the option to remove it. After moving or upgrading the app, open the new copy once so the saved startup path can be refreshed.
 
 To remove the app: disable startup and save, disable PATCH INSERT, exit from the tray, then remove its folder. Local settings/logs can be removed separately. Diagnostics are text only, never audio; rotation is approximately 2 MiB plus one previous segment.
 
@@ -105,11 +92,12 @@ Direct executable launches retain a diagnostic console:
 .\voicemeeter-aec.exe --self-test
 .\voicemeeter-aec.exe --self-test --suppression balanced
 .\voicemeeter-aec.exe --run --mic 1 --ref 11,12 --returns 1,2 --auto-strips 6,7,8 --auto-bus 2
+.\voicemeeter-aec.exe --run --mic 1 --ref 11,12,19,20,27,28 --returns 1,2 --auto-strips 6,7,8 --auto-bus 2
 .\voicemeeter-aec.exe --run --mic 1 --ref 11,12 --returns 1,2 --auto-strips all --auto-bus 2 --suppression balanced
 ```
 
 Starting modes: `--aec`, `--bypass`, `--mute`, `--auto` (default Auto). Console keys: A/B/M/T/Q. `--auto-strip` remains an alias for `--auto-strips`. `--auto-check` reads VAIO/A2; `--probe` queries the Insert driver without streaming and requires its client slot to be free. Help and self-tests open no audio device. Streaming requires `--run`.
 
-Run **Build.cmd** from the source directory. Windows x64, Rust 1.91+ (tested 1.97.1), Visual C++ and Windows SDK are required. Dependencies, ASIO headers and the local Sonora patch are included for offline builds. The launcher uses Windows PowerShell 5.1 and .NET Framework WinForms; its optional VBS entry point uses Windows Script Host. The unsigned executable requires the Visual C++ x64 runtime.
+Run **Build.cmd** from the source directory. Windows x64, Rust 1.91+, Visual C++, the Windows SDK and the .NET 8 SDK or newer are required. Rust dependencies, ASIO headers and the local Sonora patch are included. The build publishes a self-contained WPF desktop app; users do not need to install .NET. The unsigned audio engine requires the Visual C++ x64 runtime.
 
-See [validation](VALIDATION-EN.md), [changelog](CHANGELOG.md), and [licenses](THIRD-PARTY-EN.md). Independent experimental project; not affiliated with VB-Audio or Steinberg.
+See [validation](VALIDATION-EN.md), [changelog](CHANGELOG.md), and [licenses](THIRD-PARTY-EN.md). Independent early-access project; not affiliated with VB-Audio or Steinberg.

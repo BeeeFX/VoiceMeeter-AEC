@@ -6,8 +6,8 @@ unsafe extern "C" {
     fn asio_run(
         engine: *mut c_void,
         mic: i32,
-        left: i32,
-        right: i32,
+        reference_left_mask: u64,
+        reference_right_mask: u64,
         returns: u64,
         mode: i32,
         seconds: i32,
@@ -61,9 +61,9 @@ fn cli() -> Result<(), String> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.is_empty() || args.iter().any(|x| x == "--help") {
         println!(
-            "VoiceMeeter AEC — prototype 48 kHz\nNo arguments: no audio device is opened.\n\
+            "VoiceMeeter AEC — audio engine · 48 kHz\nNo arguments: no audio device is opened.\n\
 --self-test : synthetic validation without a driver\n--probe : query Insert Potato without streaming\n\
---run --mic 1 --ref 11,12 --returns 1,2 [--bypass] [--mute] [--auto]\n\
+--run --mic 1 --ref 11,12[,19,20...] --returns 1,2 [--bypass] [--mute] [--auto]\n\
   [--delay-ms 0] [--hold-ms 0] [--suppression gentle|balanced|strong] [--seconds 60] [--auto-strips 6,7,8|all --auto-bus 2]\n\
 Default mode: Auto, strip 6 to A2. --aec selects manual AEC.\n\
 Channels, Auto strips (1..8) and Auto A bus (1..5) are numbered from 1.\n\
@@ -144,13 +144,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
                 let parse = |s: &str| s.parse::<i32>().map_err(|_| format!("invalid integer {s}"));
                 match key.as_str() {
                     "--mic" => mic = parse(v)?,
-                    "--ref" => {
-                        let p = v.split(',').map(parse).collect::<Result<Vec<_>, _>>()?;
-                        if p.len() != 2 {
-                            return Err("--ref requires L,R".into());
-                        }
-                        reference = Some((p[0], p[1]));
-                    }
+                    "--ref" => reference = Some(parse_reference_pairs(v)?),
                     "--returns" => {
                         returns = v.split(',').map(parse).collect::<Result<Vec<_>, _>>()?
                     }
@@ -169,16 +163,20 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
     if !run {
         return Err("--run is required".into());
     }
-    let (l, r) = reference.ok_or("reference required: --ref L,R")?;
-    if [mic, l, r]
-        .iter()
+    let references = reference.ok_or("reference required: --ref L,R[,L,R...]")?;
+    if std::iter::once(&mic)
+        .chain(references.iter().flat_map(|(left, right)| [left, right]))
         .chain(&returns)
         .any(|x| !(1..=34).contains(x))
         || returns.is_empty()
     {
         return Err("channels must be within 1..34".into());
     }
-    if l == mic || r == mic || returns.contains(&l) || returns.contains(&r) {
+    if references
+        .iter()
+        .flat_map(|(left, right)| [left, right])
+        .any(|channel| *channel == mic || returns.contains(channel))
+    {
         return Err("reference channels must not overlap the microphone or its returns".into());
     }
     if !returns.contains(&mic) {
@@ -192,7 +190,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
         return Err("parameter out of range".into());
     }
     println!(
-        "Mic {mic}; reference {l},{r}; returns {returns:?}.\nFixed buffer {} ms; AEC delay estimate {delay} ms.",
+        "Mic {mic}; reference pairs {references:?}; returns {returns:?}.\nFixed buffer {} ms; AEC delay estimate {delay} ms.",
         10 + hold
     );
     println!("Residual suppression: {suppression:?} (Standard = Strong / upstream)");
@@ -201,6 +199,12 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
         "Auto strips mask: {auto_mask:#04x} -> A{auto_bus}; route state, not audio-level detection."
     );
     let mask = returns.iter().fold(0u64, |a, c| a | (1u64 << (c - 1)));
+    let reference_left_mask = references
+        .iter()
+        .fold(0u64, |mask, (channel, _)| mask | (1u64 << (channel - 1)));
+    let reference_right_mask = references
+        .iter()
+        .fold(0u64, |mask, (_, channel)| mask | (1u64 << (channel - 1)));
     let started = std::time::Instant::now();
     let mut recovery = Recovery::default();
     loop {
@@ -217,8 +221,8 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
             asio_run(
                 &mut e as *mut Engine as *mut c_void,
                 mic - 1,
-                l - 1,
-                r - 1,
+                reference_left_mask,
+                reference_right_mask,
                 mask,
                 mode,
                 remaining,
@@ -244,6 +248,28 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
             }
         }
     }
+}
+
+fn parse_reference_pairs(value: &str) -> Result<Vec<(i32, i32)>, String> {
+    let channels = value
+        .split(',')
+        .map(|entry| {
+            entry
+                .parse::<i32>()
+                .map_err(|_| "reference channels must be comma-separated integers".to_string())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if channels.len() < 2 || channels.len() % 2 != 0 {
+        return Err("--ref requires one or more L,R pairs".into());
+    }
+    let pairs = channels
+        .chunks_exact(2)
+        .map(|pair| (pair[0], pair[1]))
+        .collect::<Vec<_>>();
+    if pairs.iter().any(|pair| pair.0 == pair.1) {
+        return Err("each reference pair requires different left and right channels".into());
+    }
+    Ok(pairs)
 }
 
 fn auto_strip_mask(value: &str, returns: &[i32]) -> Result<i32, String> {
@@ -314,6 +340,20 @@ mod recovery_tests {
         );
         for invalid in ["", "0", "9", "6,", "6.5", "-1"] {
             assert!(super::auto_strip_mask(invalid, &[1, 2]).is_err());
+        }
+    }
+    #[test]
+    fn reference_parser_accepts_multiple_stereo_pairs() {
+        assert_eq!(
+            super::parse_reference_pairs("11,12").unwrap(),
+            vec![(11, 12)]
+        );
+        assert_eq!(
+            super::parse_reference_pairs("11,12,19,20").unwrap(),
+            vec![(11, 12), (19, 20)]
+        );
+        for invalid in ["", "11", "11,12,19", "11,left", "11,11"] {
+            assert!(super::parse_reference_pairs(invalid).is_err());
         }
     }
     #[test]

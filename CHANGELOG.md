@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.0 — first polished release
+
+- Replace the PowerShell settings form with a self-contained modern Windows desktop app, a new application/tray icon, and a dark-first visual design with a saved light theme.
+- Present VoiceMeeter's eight columns directly: IN1–IN5, VAIO, AUX and VAIO3, including custom strip labels read from an already-running VoiceMeeter instance. The app translates those choices to Insert channel numbers.
+- Allow several playback columns to be selected and mix their stereo Insert pairs into one complete echo reference.
+- Reduce first setup to microphone column, playback-reference column and speaker A bus. Move suppression, timing, startup mode and multi-strip Auto rules to Advanced.
+- Keep Auto, AEC, bypass and mute available in the window and tray; save settings automatically and restore the existing app when it is opened twice.
+- Add the full setup walkthrough inside the app, including a real VoiceMeeter PATCH INSERT view that highlights the selected microphone's L/R boxes, and replace native-looking selectors, checkboxes, sliders and scrollbars with consistent themed controls.
+- Redesign the README around download and setup, and update the English and French guides for the new application.
+- Publish the .NET runtime with the app so release users do not need PowerShell, Windows Script Host or a separate .NET installation.
+
 ## 0.1.3 — tray, startup and suppression profiles
 
 - Make Auto the default starting mode and add monitoring for multiple strips or all playback routes to A1–A5, excluding configured microphone-return strips in the latter mode. Monitoring remains based on routing state, independent of the audio reference.

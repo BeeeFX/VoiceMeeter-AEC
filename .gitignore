@@ -1,5 +1,8 @@
 /target/
 /dist/
+/.dotnet-home/
+/app/bin/
+/app/obj/
 /voicemeeter-aec.exe
 /ui-settings.json
 *.zip

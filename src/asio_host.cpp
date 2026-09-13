@@ -21,7 +21,7 @@ IASIO* driver=nullptr; void* engine=nullptr;
 std::vector<ASIOBufferInfo> buffers;
 std::vector<ASIOSampleType> formats;
 std::vector<float> micdata,leftdata,rightdata,clean;
-long channels=0,frames=0; int mic=0,left=0,right=0; uint64_t returns=0;
+long channels=0,frames=0; int mic=0; uint64_t reference_left=0,reference_right=0,returns=0;
 bool ready=false;
 std::atomic<int> mode{0},fault{0};
 std::atomic<uint64_t> callbacks{0},overruns{0},max_us{0};
@@ -80,8 +80,13 @@ void process(long index,ASIOBool) {
  auto begin=std::chrono::steady_clock::now();
  for(int i=0;i<frames;i++){
   micdata[i]=read_sample(buffers[mic].buffers[index],i,formats[mic]);
-  leftdata[i]=read_sample(buffers[left].buffers[index],i,formats[left]);
-  rightdata[i]=read_sample(buffers[right].buffers[index],i,formats[right]);
+  float mixed_left=0.f,mixed_right=0.f;
+  for(int c=0;c<channels;c++){
+   if(reference_left&(uint64_t(1)<<c))mixed_left+=read_sample(buffers[c].buffers[index],i,formats[c]);
+   if(reference_right&(uint64_t(1)<<c))mixed_right+=read_sample(buffers[c].buffers[index],i,formats[c]);
+  }
+  leftdata[i]=std::clamp(mixed_left,-1.f,1.f);
+  rightdata[i]=std::clamp(mixed_right,-1.f,1.f);
  }
  float stats[4]{};
  aec_block(engine,micdata.data(),leftdata.data(),rightdata.data(),clean.data(),size_t(frames),mode.load(),stats);
@@ -132,12 +137,12 @@ struct Remote {
  ~Remote(){if(logged&&logout)logout();if(dll)FreeLibrary(dll);}
 };
 }
-extern "C" int asio_run(void* ctx,int m,int l,int r,uint64_t ret,int initial,int seconds,int probe,int auto_mask,int auto_bus,int* final_mode){
+extern "C" int asio_run(void* ctx,int m,uint64_t ref_left,uint64_t ref_right,uint64_t ret,int initial,int seconds,int probe,int auto_mask,int auto_bus,int* final_mode){
  setvbuf(stdout,nullptr,_IONBF,0);
  struct HostWindow { HWND h; ~HostWindow(){if(h)DestroyWindow(h);} } hostWindow{
   CreateWindowExW(0,L"STATIC",L"VoiceMeeter AEC",0,0,0,0,0,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr)
  };
- struct InstanceGuard {HANDLE h;~InstanceGuard(){if(h)CloseHandle(h);}} instance{CreateMutexW(nullptr,FALSE,L"Local\\PotatoAECInsertPrototype")}; if(!instance.h||GetLastError()==ERROR_ALREADY_EXISTS){std::fprintf(stderr,"Another prototype instance is already open.\n");return 22;}
+ struct InstanceGuard {HANDLE h;~InstanceGuard(){if(h)CloseHandle(h);}} instance{CreateMutexW(nullptr,FALSE,L"Local\\PotatoAECInsertPrototype")}; if(!instance.h||GetLastError()==ERROR_ALREADY_EXISTS){std::fprintf(stderr,"VoiceMeeter AEC is already running.\n");return 22;}
  reset_session_state(initial);
  HKEY key=nullptr;
  if(RegOpenKeyExW(HKEY_LOCAL_MACHINE,L"SOFTWARE\\ASIO\\Voicemeeter Potato Insert Virtual ASIO",0,KEY_READ|KEY_WOW64_64KEY,&key)!=ERROR_SUCCESS){std::fprintf(stderr,"Potato Insert x64 driver is missing.\n");return 10;}
@@ -163,8 +168,8 @@ extern "C" int asio_run(void* ctx,int m,int l,int r,uint64_t ret,int initial,int
   }
   if(!valid){std::fprintf(stderr,"Unsupported format; no stream opened.\n");result=17;break;}
   if(probe)break;
-  if(!ctx||m<0||l<0||r<0||m>=channels||l>=channels||r>=channels||(ret>>channels)!=0){result=18;break;}
-  engine=ctx;mic=m;left=l;right=r;returns=ret;mode=initial==3?0:initial;
+  if(!ctx||m<0||m>=channels||ref_left==0||ref_right==0||((ref_left|ref_right|ret)>>channels)!=0){result=18;break;}
+  engine=ctx;mic=m;reference_left=ref_left;reference_right=ref_right;returns=ret;mode=initial==3?0:initial;
   if(auto_mask>0&&!remote.open()){std::fprintf(stderr,"Remote API unavailable: Auto cannot read routing; Auto mode keeps AEC on.\n");if(automatic)mode=0;}
   micdata.resize(frames);leftdata.resize(frames);rightdata.resize(frames);clean.resize(frames);buffers.resize(channels*2);
   for(long c=0;c<channels*2;c++){buffers[c]={};buffers[c].isInput=c<channels?ASIOTrue:ASIOFalse;buffers[c].channelNum=c%channels;}
@@ -246,7 +251,7 @@ extern "C" int asio_control_selftest(){
 
 // Exercises the real native callback and Rust FFI without opening any driver.
 extern "C" int asio_callback_selftest(void* ctx){
- reset_session_state(1);engine=ctx;channels=34;frames=192;mic=0;left=10;right=11;returns=3;
+ reset_session_state(1);engine=ctx;channels=34;frames=192;mic=0;reference_left=(uint64_t(1)<<10)|(uint64_t(1)<<18);reference_right=(uint64_t(1)<<11)|(uint64_t(1)<<19);returns=3;
  formats.assign(34,ASIOSTFloat32LSB);buffers.assign(68,{});
  micdata.assign(frames,0);leftdata.assign(frames,0);rightdata.assign(frames,0);clean.assign(frames,0);
  std::vector<std::vector<float>> data(136,std::vector<float>(frames));
@@ -263,6 +268,7 @@ extern "C" int asio_callback_selftest(void* ctx){
   }
  }
  if(callbacks.load()!=300||fault.load()!=0)return 3;
+ if(std::abs(refpeak.load()-0.32f)>0.0001f)return 5;
  process(2,ASIOTrue);if(fault.load()!=1)return 4;
  std::puts("Full callback/FFI: framing, 34-channel preservation, immediate mute and invalid-index detection PASS.");
  return 0;
