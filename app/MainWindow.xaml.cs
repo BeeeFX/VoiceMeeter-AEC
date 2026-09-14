@@ -10,9 +10,12 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using WinForms = System.Windows.Forms;
 using Application = System.Windows.Application;
+using Button = System.Windows.Controls.Button;
 using CheckBox = System.Windows.Controls.CheckBox;
 using ComboBox = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+using Key = System.Windows.Input.Key;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using RadioButton = System.Windows.Controls.RadioButton;
 using Brush = System.Windows.Media.Brush;
 
@@ -29,6 +32,9 @@ public partial class MainWindow : Window
     private readonly Dictionary<int, CheckBox> _autoButtons = [];
     private WinForms.NotifyIcon? _tray;
     private Icon? _icon;
+    private Icon? _statusIcon;
+    private string? _statusIconState;
+    private readonly Dictionary<string, WinForms.ToolStripMenuItem> _trayModeItems = [];
     private bool _ready;
     private bool _allowClose;
     private bool _startupPending;
@@ -37,6 +43,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _showTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
     private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     private readonly CancellationTokenSource _lifetimeCancellation = new();
+    private TaskCompletionSource<bool>? _stopConfirmation;
     private UpdateRelease? _availableUpdate;
     private string _updateState = "idle";
     private int _updateProgress;
@@ -150,6 +157,9 @@ public partial class MainWindow : Window
         ["Please start VoiceMeeter {0} first, then try again."] = "Démarrez d’abord VoiceMeeter {0}, puis réessayez.",
         ["The audio engine stopped. Open Diagnostics for details."] = "Le moteur audio s’est arrêté. Ouvrez Diagnostic pour plus de détails.",
         ["Before stopping, disable the microphone’s PATCH INSERT return in VoiceMeeter. Continue?"] = "Avant l’arrêt, désactivez le retour PATCH INSERT du microphone dans VoiceMeeter. Continuer ?",
+        ["Stop echo cancellation?"] = "Arrêter l’annulation d’écho ?",
+        ["First, turn off the microphone’s two PATCH INSERT buttons in VoiceMeeter. Leaving them enabled after the engine stops can interrupt your microphone."] = "Désactivez d’abord les deux boutons PATCH INSERT du microphone dans VoiceMeeter. Les laisser activés après l’arrêt du moteur peut interrompre le microphone.",
+        ["Keep running"] = "Laisser actif",
         ["The engine did not stop yet. Open Diagnostics and try again."] = "Le moteur ne s’est pas encore arrêté. Ouvrez Diagnostic et réessayez.",
         ["Could not save settings"] = "Impossible d’enregistrer les réglages",
         ["Could not start"] = "Démarrage impossible",
@@ -241,6 +251,10 @@ public partial class MainWindow : Window
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DestroyIcon(IntPtr handle);
 
     private void BuildSelectors()
     {
@@ -597,6 +611,10 @@ public partial class MainWindow : Window
         AecModeButton.Content = T("AEC on");
         BypassModeButton.Content = "Bypass";
         MuteModeButton.Content = T("Mute");
+        StopDialogTitle.Text = T("Stop echo cancellation?");
+        StopDialogText.Text = T("First, turn off the microphone’s two PATCH INSERT buttons in VoiceMeeter. Leaving them enabled after the engine stops can interrupt your microphone.");
+        StopDialogCancelButton.Content = T("Keep running");
+        StopDialogConfirmButton.Content = T("Stop engine");
         SetComboLabels();
         UpdateStatusVisual(_engine.Status);
     }
@@ -629,8 +647,8 @@ public partial class MainWindow : Window
         _engine.DiagnosticsChanged += () => Dispatcher.Invoke(() => DiagnosticsBox.Text = _engine.Diagnostics);
         _engine.Exited += code => Dispatcher.Invoke(() =>
         {
+            _stopConfirmation?.TrySetResult(false);
             EngineButton.Content = T("Start echo cancellation");
-            SetModeButtons(false);
             SetModeButtons(false);
             if (_startupPending && !_engine.EverRunning && code is 13 or 14 or 20 or 35 && DateTime.Now < _startupDeadline)
                 return;
@@ -655,23 +673,42 @@ public partial class MainWindow : Window
         if (_tray is null)
         {
             var resource = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/app.ico"));
-            _icon = resource is null ? SystemIcons.Application : new Icon(resource.Stream);
+            if (resource is null)
+                _icon = (Icon)SystemIcons.Application.Clone();
+            else
+            {
+                using (resource.Stream)
+                using (var loadedIcon = new Icon(resource.Stream))
+                    _icon = (Icon)loadedIcon.Clone();
+            }
             _tray = new WinForms.NotifyIcon { Icon = _icon, Visible = true, Text = "VoiceMeeter AEC" };
-            _tray.DoubleClick += (_, _) => Dispatcher.Invoke(ShowWindow);
+            _tray.MouseClick += (_, eventArgs) =>
+            {
+                if (eventArgs.Button == WinForms.MouseButtons.Left) Dispatcher.Invoke(ShowWindow);
+            };
             _tray.BalloonTipClicked += (_, _) => Dispatcher.Invoke(ShowUpdates);
         }
         var menu = new WinForms.ContextMenuStrip();
         menu.Items.Add(T("Show VoiceMeeter AEC"), null, (_, _) => Dispatcher.Invoke(ShowWindow));
         menu.Items.Add(new WinForms.ToolStripSeparator());
-        menu.Items.Add("Auto", null, (_, _) => Dispatcher.Invoke(() => SetMode('t')));
-        menu.Items.Add(T("AEC on"), null, (_, _) => Dispatcher.Invoke(() => SetMode('a')));
-        menu.Items.Add("Bypass", null, (_, _) => Dispatcher.Invoke(() => SetMode('b')));
-        menu.Items.Add(T("Mute"), null, (_, _) => Dispatcher.Invoke(() => SetMode('m')));
+        _trayModeItems.Clear();
+        AddTrayModeItem(menu, "auto", "Auto", 't');
+        AddTrayModeItem(menu, "aec", T("AEC on"), 'a');
+        AddTrayModeItem(menu, "bypass", "Bypass", 'b');
+        AddTrayModeItem(menu, "mute", T("Mute"), 'm');
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add(T("Diagnostics"), null, (_, _) => Dispatcher.Invoke(() => { ShowWindow(); ShowPage("diagnostics"); }));
         menu.Items.Add(T("Exit"), null, async (_, _) => await Dispatcher.InvokeAsync(ExitApplication));
         _tray.ContextMenuStrip?.Dispose();
         _tray.ContextMenuStrip = menu;
+        UpdateStatusVisual(_engine.Status);
+    }
+
+    private void AddTrayModeItem(WinForms.ContextMenuStrip menu, string mode, string text, char command)
+    {
+        var item = new WinForms.ToolStripMenuItem(text, null, (_, _) => Dispatcher.Invoke(() => SetMode(command)));
+        _trayModeItems[mode] = item;
+        menu.Items.Add(item);
     }
 
     private void UpdateStatusVisual(string status)
@@ -690,7 +727,75 @@ public partial class MainWindow : Window
         };
         StatusText.Text = text;
         StatusDot.Fill = (Brush)new BrushConverter().ConvertFromString(color)!;
+        UpdateModeSelection(status);
+        UpdateStatusIcon(status);
         if (_tray is not null) _tray.Text = ("VoiceMeeter AEC · " + text)[..Math.Min(63, ("VoiceMeeter AEC · " + text).Length)];
+    }
+
+    private void UpdateModeSelection(string status)
+    {
+        var activeMode = ActiveModeFromStatus(status, _settings.StartMode);
+        AutoModeButton.Tag = activeMode == "auto" ? "active" : null;
+        AecModeButton.Tag = activeMode == "aec" ? "active" : null;
+        BypassModeButton.Tag = activeMode == "bypass" ? "active" : null;
+        MuteModeButton.Tag = activeMode == "mute" ? "active" : null;
+        foreach (var pair in _trayModeItems)
+        {
+            pair.Value.Checked = pair.Key == activeMode;
+            pair.Value.Enabled = activeMode is not null;
+        }
+    }
+
+    private static string? ActiveModeFromStatus(string status, string startMode) => status switch
+    {
+        "running" => startMode,
+        "auto" or "aec" or "bypass" or "mute" => status,
+        _ => null
+    };
+
+    private void UpdateStatusIcon(string status)
+    {
+        if (_tray is null || _icon is null) return;
+        if (_statusIconState == status) return;
+        var badgeColor = status switch
+        {
+            "auto" => "#20C5C7",
+            "aec" or "running" => "#18A67E",
+            "bypass" or "starting" or "reconnecting" => "#D18B20",
+            "mute" => "#E05858",
+            _ => "#90A0AE"
+        };
+        var replacement = CreateStatusIcon(_icon, badgeColor);
+        _tray.Icon = replacement;
+        var windowIcon = Imaging.CreateBitmapSourceFromHIcon(
+            replacement.Handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+        windowIcon.Freeze();
+        Icon = windowIcon;
+        _statusIcon?.Dispose();
+        _statusIcon = replacement;
+        _statusIconState = status;
+    }
+
+    private static Icon CreateStatusIcon(Icon baseIcon, string badgeColor)
+    {
+        const int size = 32;
+        const int badgeSize = 13;
+        using var bitmap = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        using var graphics = Graphics.FromImage(bitmap);
+        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        graphics.Clear(System.Drawing.Color.Transparent);
+        graphics.DrawIcon(baseIcon, new Rectangle(0, 0, size, size));
+        using var outline = new SolidBrush(System.Drawing.Color.FromArgb(245, 13, 25, 37));
+        using var badge = new SolidBrush(ColorTranslator.FromHtml(badgeColor));
+        graphics.FillEllipse(outline, size - badgeSize - 2, size - badgeSize - 2, badgeSize + 3, badgeSize + 3);
+        graphics.FillEllipse(badge, size - badgeSize - 1, size - badgeSize - 1, badgeSize, badgeSize);
+        var handle = bitmap.GetHicon();
+        try
+        {
+            using var transient = System.Drawing.Icon.FromHandle(handle);
+            return (Icon)transient.Clone();
+        }
+        finally { DestroyIcon(handle); }
     }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -711,6 +816,14 @@ public partial class MainWindow : Window
             var pageIndex = Array.IndexOf(_arguments, "--preview-page");
             if (pageIndex >= 0 && pageIndex + 1 < _arguments.Length)
                 ShowPage(_arguments[pageIndex + 1]);
+            var statusIndex = Array.IndexOf(_arguments, "--preview-status");
+            if (statusIndex >= 0 && statusIndex + 1 < _arguments.Length)
+            {
+                SetModeButtons(true);
+                UpdateStatusVisual(_arguments[statusIndex + 1]);
+                EngineButton.Content = T("Stop engine");
+            }
+            if (_arguments.Contains("--preview-stop-dialog")) StopDialogOverlay.Visibility = Visibility.Visible;
             await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
             if (_arguments.Contains("--preview-bottom"))
             {
@@ -836,6 +949,38 @@ public partial class MainWindow : Window
             ApplyTheme();
             if (Application.Current.Resources["WindowBackground"] is not SolidColorBrush)
                 throw new InvalidOperationException("A theme resource is missing.");
+        }
+        var modeButtons = new Dictionary<string, Button>
+        {
+            ["auto"] = AutoModeButton,
+            ["aec"] = AecModeButton,
+            ["bypass"] = BypassModeButton,
+            ["mute"] = MuteModeButton
+        };
+        SetModeButtons(true);
+        foreach (var mode in modeButtons.Keys)
+        {
+            UpdateStatusVisual(mode);
+            if (modeButtons.Count(pair => Equals(pair.Value.Tag, "active")) != 1 ||
+                !Equals(modeButtons[mode].Tag, "active"))
+                throw new InvalidOperationException($"The {mode} mode button was not selected correctly.");
+        }
+        UpdateStatusVisual("stopped");
+        if (modeButtons.Any(pair => pair.Value.Tag is not null))
+            throw new InvalidOperationException("A mode button remains selected while the engine is stopped.");
+        SetModeButtons(false);
+        if (string.IsNullOrWhiteSpace(StopDialogTitle.Text) || string.IsNullOrWhiteSpace(StopDialogText.Text) ||
+            StopDialogCancelButton.Content is null || StopDialogConfirmButton.Content is null)
+            throw new InvalidOperationException("The integrated stop confirmation is incomplete.");
+        var iconResource = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/app.ico"));
+        if (iconResource is null) throw new InvalidOperationException("The tray icon resource is missing.");
+        using (iconResource.Stream)
+        using (var baseIcon = new Icon(iconResource.Stream))
+        {
+            foreach (var color in new[] { "#20C5C7", "#18A67E", "#D18B20", "#E05858", "#90A0AE" })
+            using (var statusIcon = CreateStatusIcon(baseIcon, color))
+                if (statusIcon.Width != 32 || statusIcon.Height != 32)
+                    throw new InvalidOperationException("A status tray icon has the wrong dimensions.");
         }
         ShowPage("guide");
         if (GuideView.Visibility != Visibility.Visible || string.IsNullOrWhiteSpace(GuideStep4Text.Text))
@@ -1056,15 +1201,40 @@ public partial class MainWindow : Window
     private async Task<bool> StopEngine(bool ask)
     {
         if (!_engine.Alive) return true;
-        if (ask)
-        {
-            var answer = System.Windows.MessageBox.Show(this, T("Before stopping, disable the microphone’s PATCH INSERT return in VoiceMeeter. Continue?"), "VoiceMeeter AEC", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
-            if (answer != MessageBoxResult.OK) return false;
-        }
+        if (ask && !await ConfirmStopEngineAsync()) return false;
         var stopped = await _engine.StopAsync(TimeSpan.FromSeconds(2));
         if (!stopped)
             System.Windows.MessageBox.Show(this, T("The engine did not stop yet. Open Diagnostics and try again."), "VoiceMeeter AEC", MessageBoxButton.OK, MessageBoxImage.Warning);
         return stopped;
+    }
+
+    private async Task<bool> ConfirmStopEngineAsync()
+    {
+        if (_stopConfirmation is not null) return await _stopConfirmation.Task;
+        ShowWindow();
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _stopConfirmation = completion;
+        StopDialogOverlay.Visibility = Visibility.Visible;
+        StopDialogCancelButton.Focus();
+        try { return await completion.Task; }
+        finally
+        {
+            if (ReferenceEquals(_stopConfirmation, completion)) _stopConfirmation = null;
+            StopDialogOverlay.Visibility = Visibility.Collapsed;
+            EngineButton.Focus();
+        }
+    }
+
+    private void StopDialogCancel_Click(object sender, RoutedEventArgs e) => _stopConfirmation?.TrySetResult(false);
+    private void StopDialogConfirm_Click(object sender, RoutedEventArgs e) => _stopConfirmation?.TrySetResult(true);
+
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (StopDialogOverlay.Visibility == Visibility.Visible && e.Key == Key.Escape)
+        {
+            _stopConfirmation?.TrySetResult(false);
+            e.Handled = true;
+        }
     }
 
     private async void Engine_Click(object sender, RoutedEventArgs e)
@@ -1087,6 +1257,7 @@ public partial class MainWindow : Window
         BypassModeButton.IsEnabled = enabled;
         MuteModeButton.IsEnabled = enabled;
         EditionBox.IsEnabled = !enabled;
+        if (!enabled) UpdateModeSelection("stopped");
     }
 
     private void SetMode(char command)
@@ -1153,12 +1324,14 @@ public partial class MainWindow : Window
         if (_engine.Alive)
         {
             e.Cancel = true;
+            _stopConfirmation?.TrySetResult(false);
             Hide();
             return;
         }
         SaveSettingsNow();
         _allowClose = true;
         _tray?.Dispose();
+        _statusIcon?.Dispose();
         _icon?.Dispose();
         _showTimer.Stop();
         _saveTimer.Stop();
@@ -1171,6 +1344,7 @@ public partial class MainWindow : Window
         _lifetimeCancellation.Cancel();
         _lifetimeCancellation.Dispose();
         _tray?.Dispose();
+        _statusIcon?.Dispose();
         _icon?.Dispose();
         _showTimer.Stop();
         _saveTimer.Stop();

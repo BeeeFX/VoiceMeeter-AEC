@@ -42,6 +42,7 @@ try {
   foreach($page in @('setup','guide','advanced')){
    $previewPath=Join-Path $PSScriptRoot ("docs\images\app-$page.png")
    $previewArguments=@('--preview',$previewPath,'--preview-page',$page,'--dark')
+   if($page -eq 'setup'){$previewArguments+=@('--preview-status','auto')}
    if($page -eq 'guide'){$previewArguments+='--preview-bottom'}
    $preview=Start-Process -FilePath $appExecutable -ArgumentList $previewArguments -Wait -PassThru
    if($preview.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $previewPath)){throw "Desktop app $page preview failed"}

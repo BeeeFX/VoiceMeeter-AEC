@@ -5,7 +5,7 @@
         WindowStartupLocation="CenterScreen" Background="{DynamicResource WindowBackground}"
         Foreground="{DynamicResource Ink}"
         FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13"
-        Icon="Assets/app.ico">
+        Icon="Assets/app.ico" PreviewKeyDown="Window_PreviewKeyDown">
   <Grid Background="{DynamicResource WindowBackground}">
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="246" />
@@ -278,7 +278,7 @@
                 <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <StackPanel Margin="0,0,24,0">
                   <TextBlock x:Name="UpdatesHeading" Text="Updates" FontSize="16" FontWeight="SemiBold" />
-                  <TextBlock x:Name="UpdateStatusText" Text="Current version 1.1.0" Foreground="{DynamicResource MutedInk}" Margin="0,5,0,11" TextWrapping="Wrap" />
+                  <TextBlock x:Name="UpdateStatusText" Text="Current version 1.1.2" Foreground="{DynamicResource MutedInk}" Margin="0,5,0,11" TextWrapping="Wrap" />
                   <CheckBox x:Name="AutomaticUpdatesBox" Content="Check for updates automatically" Checked="SettingChanged" Unchecked="SettingChanged" />
                   <TextBlock x:Name="AutomaticUpdatesHelp" Text="Checks GitHub Releases once a day. Installation always asks first." Foreground="{DynamicResource MutedInk}" Margin="25,5,0,0" TextWrapping="Wrap" />
                 </StackPanel>
@@ -303,16 +303,36 @@
         <Grid Margin="30,0">
           <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <Button x:Name="AutoModeButton" Content="Auto" Style="{StaticResource SecondaryButton}" Padding="15,9" Margin="0,0,7,0" Click="AutoMode_Click" IsEnabled="False" />
-            <Button x:Name="AecModeButton" Content="AEC on" Style="{StaticResource SecondaryButton}" Padding="15,9" Margin="0,0,7,0" Click="AecMode_Click" IsEnabled="False" />
-            <Button x:Name="BypassModeButton" Content="Bypass" Style="{StaticResource SecondaryButton}" Padding="15,9" Margin="0,0,7,0" Click="BypassMode_Click" IsEnabled="False" />
-            <Button x:Name="MuteModeButton" Content="Mute" Style="{StaticResource SecondaryButton}" Padding="15,9" Click="MuteMode_Click" IsEnabled="False" />
+            <Button x:Name="AutoModeButton" Content="Auto" Style="{StaticResource ModeButton}" Padding="15,9" Margin="0,0,7,0" Click="AutoMode_Click" IsEnabled="False" />
+            <Button x:Name="AecModeButton" Content="AEC on" Style="{StaticResource ModeButton}" Padding="15,9" Margin="0,0,7,0" Click="AecMode_Click" IsEnabled="False" />
+            <Button x:Name="BypassModeButton" Content="Bypass" Style="{StaticResource ModeButton}" Padding="15,9" Margin="0,0,7,0" Click="BypassMode_Click" IsEnabled="False" />
+            <Button x:Name="MuteModeButton" Content="Mute" Style="{StaticResource ModeButton}" Padding="15,9" Click="MuteMode_Click" IsEnabled="False" />
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
             <TextBlock x:Name="UnsavedText" Text="Settings saved automatically" Foreground="{DynamicResource MutedInk}" VerticalAlignment="Center" Margin="0,0,16,0" />
             <Button x:Name="EngineButton" Content="Start echo cancellation" Style="{StaticResource PrimaryButton}" MinWidth="205" Click="Engine_Click" />
           </StackPanel>
         </Grid>
+      </Border>
+    </Grid>
+
+    <Grid x:Name="StopDialogOverlay" Grid.ColumnSpan="2" Background="#A6091018" Visibility="Collapsed" Panel.ZIndex="100" Focusable="True">
+      <Border Width="470" Padding="26" HorizontalAlignment="Center" VerticalAlignment="Center"
+              Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" CornerRadius="16"
+              KeyboardNavigation.TabNavigation="Cycle">
+        <Border.Effect><DropShadowEffect Color="#000000" BlurRadius="30" Opacity="0.48" ShadowDepth="9" /></Border.Effect>
+        <StackPanel>
+          <Border Width="46" Height="46" HorizontalAlignment="Left" Background="{DynamicResource WarningBackground}" CornerRadius="23" Margin="0,0,0,18">
+            <TextBlock Text="&#xE7BA;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="21" Foreground="{DynamicResource WarningText}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBlock x:Name="StopDialogTitle" Text="Stop echo cancellation?" FontSize="20" FontWeight="SemiBold" />
+          <TextBlock x:Name="StopDialogText" Text="First, turn off the microphone’s two PATCH INSERT buttons in VoiceMeeter. Leaving them enabled after the engine stops can interrupt your microphone."
+                     Foreground="{DynamicResource MutedInk}" FontSize="14" LineHeight="21" TextWrapping="Wrap" Margin="0,9,0,24" />
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name="StopDialogCancelButton" Content="Keep running" Style="{StaticResource SecondaryButton}" Padding="17,10" Margin="0,0,9,0" Click="StopDialogCancel_Click" />
+            <Button x:Name="StopDialogConfirmButton" Content="Stop engine" Style="{StaticResource PrimaryButton}" Padding="17,10" Click="StopDialogConfirm_Click" />
+          </StackPanel>
+        </StackPanel>
       </Border>
     </Grid>
   </Grid>

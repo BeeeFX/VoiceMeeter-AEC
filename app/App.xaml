@@ -114,6 +114,34 @@
       </Setter>
     </Style>
 
+    <Style x:Key="ModeButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+      <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+      <Setter Property="Background" Value="{DynamicResource ControlBackground}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="9" Padding="{TemplateBinding Padding}" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Root" Property="Background" Value="{DynamicResource ControlHover}" /><Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Accent}" /></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="Root" Property="Background" Value="{DynamicResource AccentSoft}" /></Trigger>
+              <Trigger Property="Tag" Value="active"><Setter TargetName="Root" Property="Background" Value="{DynamicResource Accent}" /><Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource AccentHover}" /><Setter Property="Foreground" Value="{DynamicResource PrimaryText}" /><Setter Property="FontWeight" Value="Bold" /></Trigger>
+              <MultiTrigger>
+                <MultiTrigger.Conditions><Condition Property="Tag" Value="active" /><Condition Property="IsMouseOver" Value="True" /></MultiTrigger.Conditions>
+                <Setter TargetName="Root" Property="Background" Value="{DynamicResource AccentHover}" />
+              </MultiTrigger>
+              <MultiTrigger>
+                <MultiTrigger.Conditions><Condition Property="Tag" Value="active" /><Condition Property="IsPressed" Value="True" /></MultiTrigger.Conditions>
+                <Setter TargetName="Root" Property="Background" Value="{DynamicResource AccentPressed}" />
+              </MultiTrigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Background" Value="{DynamicResource DisabledBackground}" /><Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource CardBorder}" /><Setter Property="Foreground" Value="{DynamicResource SubtleInk}" /></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
     <Style x:Key="ChoiceCard" TargetType="RadioButton">
       <Setter Property="Background" Value="{DynamicResource CardBackground}" />
       <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.2 — clearer status and stopping
+
+- Highlight the active Auto, AEC, Bypass or Mute button and check the matching command in the notification menu.
+- Add a colour status badge to the notification-area and taskbar icons: cyan for Auto, green for AEC, amber for Bypass/starting/reconnecting, red for Mute and grey when stopped.
+- Restore the app with one left click on its notification icon.
+- Replace the native stop warning with a bilingual in-app confirmation that explains the PATCH INSERT step and keeps cancellation running by default.
+
 ## 1.1.1 — simple Windows installer
 
 - Add one `VoiceMeeter-AEC-Setup.exe` as the recommended download, with a per-user installation, Start menu shortcut and standard uninstall entry.
