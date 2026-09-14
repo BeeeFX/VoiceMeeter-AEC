@@ -11,12 +11,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/BeeeFX/VoiceMeeter-AEC/releases/latest"><img alt="Download for Windows" src="https://img.shields.io/badge/Download-Windows-20C5C7?style=for-the-badge&logo=windows11&logoColor=white&labelColor=0D1925"></a>
+  <a href="https://github.com/BeeeFX/VoiceMeeter-AEC/releases/latest/download/VoiceMeeter-AEC-Setup.exe"><img alt="Download the Windows installer" src="https://img.shields.io/badge/Download-Windows%20installer-20C5C7?style=for-the-badge&logo=windows11&logoColor=white&labelColor=0D1925"></a>
 </p>
 
 <p align="center">
-  <sub>Windows 10/11 x64 · Portable ZIP · No PowerShell or separate .NET install</sub><br>
-  <a href="GUIDE-EN.md">Detailed setup</a> · <a href="GUIDE-FR.md">Guide français</a> · <a href="https://github.com/BeeeFX/VoiceMeeter-AEC/releases/latest">Release notes</a>
+  <sub>Windows 10/11 x64 · One installer · No admin rights or separate .NET install</sub><br>
+  <a href="https://github.com/BeeeFX/VoiceMeeter-AEC/releases/latest">Portable ZIP</a> · <a href="GUIDE-EN.md">Detailed setup</a> · <a href="GUIDE-FR.md">Guide français</a> · <a href="https://github.com/BeeeFX/VoiceMeeter-AEC/releases/latest">Release notes</a>
 </p>
 
 VoiceMeeter AEC lets you use speakers without sending the room echo back into calls, streams, or recordings. Pick the same columns you already see in VoiceMeeter, follow the built-in guide once, and let Auto mode handle normal use.
@@ -31,7 +31,7 @@ The app detects the running VoiceMeeter edition and shows only its real mixer la
 
 ## Get started
 
-1. Download the latest **Windows x64** ZIP from [Releases](https://github.com/BeeeFX/VoiceMeeter-AEC/releases/latest), extract it to a permanent folder, and open **VoiceMeeter AEC.exe**. The .NET runtime is included.
+1. Download and run **VoiceMeeter-AEC-Setup.exe**. It installs for your Windows account, adds VoiceMeeter AEC to the Start menu, and includes the .NET runtime. No administrator rights are needed. A portable ZIP remains available on the [release page](https://github.com/BeeeFX/VoiceMeeter-AEC/releases/latest).
 2. In the app, choose the microphone column, one or more playback columns whose audio becomes the echo reference, and the speaker A bus that Auto mode should watch.
 3. Open **Setup guide** inside the app, then follow its PATCH INSERT and verification steps.
 4. Select **Start echo cancellation**. Auto mode enables AEC when the chosen playback route is active and bypasses it when that route is inactive.
@@ -73,14 +73,14 @@ Gentle and Balanced pass all six synthetic AEC scenarios. Strong offers more agg
 
 ## Build from source
 
-Requirements: Windows x64, Rust 1.91 or newer, Visual C++ with the Windows SDK, and the .NET 8 SDK or newer.
+Requirements: Windows x64, Rust 1.91 or newer, Visual C++ with the Windows SDK, the .NET 8 SDK or newer, and Inno Setup 7 for the installer.
 
 ```powershell
 .\Build.cmd
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Package.ps1
 ```
 
-The build runs offline Rust tests, synthetic DSP checks, desktop UI checks, and creates a self-contained Windows app. Packaging produces a compact runnable ZIP and a separate source ZIP with SHA-256 files. More detail is in [PUBLISHING.md](PUBLISHING.md).
+The build runs offline Rust tests, synthetic DSP checks, desktop UI checks, and creates a self-contained Windows app. Packaging produces the single-file installer, a minimal portable/update ZIP, and a separate source ZIP, each with a SHA-256 file. More detail is in [PUBLISHING.md](PUBLISHING.md).
 
 ## License
 

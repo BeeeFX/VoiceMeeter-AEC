@@ -1,12 +1,12 @@
 # VoiceMeeter AEC — configuration Windows x64
 
-[English](GUIDE-EN.md) · Version 1.1.0 · Windows x64 · VoiceMeeter Banana ou Potato
+[English](GUIDE-EN.md) · Version 1.1.1 · Windows x64 · VoiceMeeter Banana ou Potato
 
 VoiceMeeter AEC atténue les sons des enceintes repris par le micro. Il utilise le pilote **VoiceMeeter Banana ou Potato Insert Virtual ASIO** correspondant, avant les effets de piste. VoiceMeeter garde le contrôle du matériel. L'application ne modifie ni les routes, ni les PATCH INSERT, ni les périphériques Windows par défaut.
 
 ## Premier démarrage
 
-1. Extraire le ZIP Windows dans un dossier permanent et ouvrir **VoiceMeeter AEC.exe**. L'application est autonome : PowerShell et .NET ne sont pas nécessaires.
+1. Lancer **VoiceMeeter-AEC-Setup.exe**, puis ouvrir VoiceMeeter AEC depuis le menu Démarrer. L’installation concerne le compte Windows actuel, ne demande pas de droits administrateur et inclut .NET. Un ZIP portable reste disponible sur la page de version.
 2. Démarrer VoiceMeeter Banana ou Potato à **48 kHz** et y configurer le micro et les enceintes normalement. L'application détecte l'édition ouverte ; le sélecteur permet aussi de la choisir lorsque VoiceMeeter est fermé.
 3. Dans l'application, choisir la colonne contenant le microphone et une ou plusieurs colonnes de lecture contenant tous les sons joués par les enceintes. Leur son devient la référence d'écho. Choisir le bus A relié aux enceintes afin qu'Auto sache quelle route surveiller. L'application affiche uniquement les colonnes et bus de cette édition, puis les traduit automatiquement en canaux Insert.
 4. Garder les retours PATCH INSERT du micro désactivés et sélectionner **Démarrer l'annulation d'écho**. Ouvrir **Diagnostic** et vérifier que le pilote Insert indique 48 kHz et que le compteur `blocks` avance. Un seul client Insert peut fonctionner à la fois.

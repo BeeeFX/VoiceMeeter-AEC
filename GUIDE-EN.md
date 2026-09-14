@@ -1,12 +1,12 @@
 # VoiceMeeter AEC — Windows x64 setup
 
-[Français](GUIDE-FR.md) · Version 1.1.0 · Windows x64 · VoiceMeeter Banana or Potato
+[Français](GUIDE-FR.md) · Version 1.1.1 · Windows x64 · VoiceMeeter Banana or Potato
 
 VoiceMeeter AEC attenuates speaker playback picked up by a microphone. It processes the microphone through the matching **VoiceMeeter Banana or Potato Insert Virtual ASIO** driver, before VoiceMeeter strip effects. VoiceMeeter retains control of the hardware. The app does not change routes, patch settings or Windows default devices.
 
 ## First setup
 
-1. Extract the Windows release into a permanent folder and open **VoiceMeeter AEC.exe**. It is a self-contained Windows app; no PowerShell or .NET installation is needed.
+1. Run **VoiceMeeter-AEC-Setup.exe**, then open VoiceMeeter AEC from the Start menu. It installs for the current Windows account without administrator rights and includes .NET. The release page also offers a portable ZIP.
 2. Run VoiceMeeter Banana or Potato at **48 kHz** and configure its microphone and speaker output as usual. The app detects the running edition; the edition selector lets you choose manually while VoiceMeeter is closed.
 3. In the app, select the VoiceMeeter column containing your microphone and one or more playback columns containing every sound played through your speakers. Their audio becomes the echo reference. Select the A bus connected to those speakers so Auto mode knows which route to watch. The app shows only the columns and buses available in your edition and converts them to Insert channels automatically.
 4. Leave the microphone PATCH INSERT returns disabled and select **Start echo cancellation**. Open **Diagnostics** and confirm that the Insert driver reports 48 kHz and the `blocks` counter advances. The driver accepts one Insert client at a time.

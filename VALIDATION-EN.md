@@ -1,6 +1,6 @@
-# VoiceMeeter AEC 1.1.0 — validation
+# VoiceMeeter AEC 1.1.1 — validation
 
-[Français](VALIDATION.md) · Version 1.1.0
+[Français](VALIDATION.md) · Version 1.1.1
 
 The automated checks pass for Gentle and Balanced. **Strong deliberately exposes the original, more aggressive suppressor and fails some near-end preservation checks.** Passing synthetic tests does not establish transparent speech or production stability.
 

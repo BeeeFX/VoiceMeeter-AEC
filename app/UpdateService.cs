@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows;
+using Microsoft.Win32;
 
 namespace VoiceMeeterAEC;
 
@@ -315,6 +316,7 @@ internal static class UpdateService
         CopyPackageWithRollback(stagingDirectory, installDirectory, backupDirectory);
 
         var installedApp = Path.Combine(installDirectory, "VoiceMeeter AEC.exe");
+        RefreshInstalledVersion(installDirectory, installedApp);
         var start = new ProcessStartInfo { FileName = installedApp, UseShellExecute = true, WorkingDirectory = installDirectory };
         start.ArgumentList.Add("--after-update");
         if (restartEngine) start.ArgumentList.Add("--restart-engine");
@@ -394,6 +396,26 @@ internal static class UpdateService
         var marker = Path.Combine(installDirectory, ".voicemeeter-aec-update-" + Guid.NewGuid().ToString("N"));
         try { File.WriteAllText(marker, "update check"); }
         finally { try { File.Delete(marker); } catch { } }
+    }
+
+    private static void RefreshInstalledVersion(string installDirectory, string installedApp)
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\Uninstall\{A3A19D55-38A5-4E5D-AED0-7C84233E9F94}_is1", true);
+            var registeredLocation = key?.GetValue("InstallLocation")?.ToString();
+            if (string.IsNullOrWhiteSpace(registeredLocation) ||
+                !Path.GetFullPath(registeredLocation).TrimEnd(Path.DirectorySeparatorChar)
+                    .Equals(Path.GetFullPath(installDirectory).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+                return;
+            var version = FileVersionInfo.GetVersionInfo(installedApp).ProductVersion;
+            if (!string.IsNullOrWhiteSpace(version)) key!.SetValue("DisplayVersion", version.Split('+')[0]);
+        }
+        catch
+        {
+            // Portable installations have no Programs entry; updates still succeed.
+        }
     }
 
     private static void WaitForParent(int parentId)

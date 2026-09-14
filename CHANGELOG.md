@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1 — simple Windows installer
+
+- Add one `VoiceMeeter-AEC-Setup.exe` as the recommended download, with a per-user installation, Start menu shortcut and standard uninstall entry.
+- Keep the portable ZIP for advanced users and for automatic updates, while reducing its visible contents to the application, audio engine and grouped licence notices.
+- Keep the integrated setup guide in the app and the full documentation on GitHub instead of placing README screenshots and Markdown guides beside the executable.
+
 ## 1.1.0 — Banana support and automatic updates
 
 - Add VoiceMeeter Banana support with its native five-strip, three-bus and 22-channel Insert layout.

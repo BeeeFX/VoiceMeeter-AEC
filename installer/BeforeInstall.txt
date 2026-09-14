@@ -1,0 +1,3 @@
+Before installing or updating, disable the microphone's two PATCH INSERT buttons in VoiceMeeter and exit VoiceMeeter AEC from its tray menu if it is running.
+
+The installer does not change VoiceMeeter routes, PATCH INSERT settings, or Windows audio devices. Your VoiceMeeter AEC settings remain in your local application data when updating or uninstalling.

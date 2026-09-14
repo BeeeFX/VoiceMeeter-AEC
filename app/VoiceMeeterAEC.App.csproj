@@ -9,7 +9,8 @@
     <AssemblyName>VoiceMeeter AEC</AssemblyName>
     <RootNamespace>VoiceMeeterAEC</RootNamespace>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Authors>BeeeFX</Authors>
     <Product>VoiceMeeter AEC</Product>
     <Description>Simple acoustic echo cancellation for VoiceMeeter Banana and Potato.</Description>
