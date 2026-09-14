@@ -26,7 +26,7 @@ $files=@('.gitignore','.gitattributes','Cargo.toml','Cargo.lock','build.rs','Bui
 foreach($file in $files){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination (Join-Path $source $file)}
 foreach($directory in @('.cargo','src','vendor','patches','docs')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $directory) -Destination $source -Recurse}
 New-Item -ItemType Directory -Path (Join-Path $source 'app\Assets') -Force | Out-Null
-foreach($file in @('VoiceMeeterAEC.App.csproj','App.xaml','App.xaml.cs','AppSettings.cs','EngineHost.cs','MainWindow.xaml','MainWindow.xaml.cs','VoiceMeeterLabels.cs')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('app\'+$file)) -Destination (Join-Path $source ('app\'+$file))}
+foreach($file in @('VoiceMeeterAEC.App.csproj','App.xaml','App.xaml.cs','AppSettings.cs','EngineHost.cs','MainWindow.xaml','MainWindow.xaml.cs','UpdateService.cs','VoiceMeeterLabels.cs')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('app\'+$file)) -Destination (Join-Path $source ('app\'+$file))}
 foreach($file in @('app.ico','app-icon-256.png','voicemeeter-patch-insert.png')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('app\Assets\'+$file)) -Destination (Join-Path $source ('app\Assets\'+$file))}
 foreach($file in Get-ChildItem -LiteralPath $source -File -Recurse -Force){
  $relative=$file.FullName.Substring($source.Length+1).Replace('\','/')

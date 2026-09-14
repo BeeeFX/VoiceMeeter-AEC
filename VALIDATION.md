@@ -1,17 +1,17 @@
-# VoiceMeeter AEC 1.0.0 — validation
+# VoiceMeeter AEC 1.1.0 — validation
 
-[English](VALIDATION-EN.md) · Version 1.0.0
+[English](VALIDATION-EN.md) · Version 1.1.0
 
-Version expérimentale. Les contrôles passent pour Douce et Équilibrée. **Forte expose la suppression d'origine, plus agressive, et échoue à certains critères de préservation du signal proche.** Des tests synthétiques réussis ne prouvent ni une voix transparente ni une stabilité de production.
+Les contrôles passent pour Douce et Équilibrée. **Forte expose la suppression d'origine, plus agressive, et échoue à certains critères de préservation du signal proche.** Des tests synthétiques réussis ne prouvent ni une voix transparente ni une stabilité de production.
 
 ## Contrôles automatisés
 
-- Six tests Rust : framing exact du bypass selon la taille des callbacks, maintien borné, référence absente/silence/valeurs non finies, fondus, reprise sélective et masques Auto multipistes avec exclusion des retours micro.
+- Sept tests Rust : framing exact du bypass selon la taille des callbacks, maintien borné, référence absente/silence/valeurs non finies, fondus, reprise sélective, analyse de plusieurs références et masques Auto multipistes avec exclusion des retours micro.
 - Transport natif : 34 canaux, doubles tampons, PCM16/24/32 et float32. Canaux non sélectionnés identiques bit à bit.
 - Callback C++ réel vers moteur Rust via FFI, sur 300 blocs simulés : framing, silence immédiat, préservation et détection d'indice invalide.
 - Événements natifs : reset, changement de fréquence, notification de latence seule, priorité de l'arrêt et combinaison des routes Auto actives/inactives/inconnues.
 - Processus caché recevant M/B/A/T/Q par le même pipe que le menu de notification. Contrôles natifs réels, diagnostics et arrêt propre vérifiés, sans périphérique audio.
-- Interface anglaise/française : Auto par défaut, changement de langue conservant mode/profil, sauvegarde/relecture, création/retrait d'un raccourci Démarrage isolé, masquage/restauration de la fenêtre.
+- Interface anglaise/française : Auto par défaut, changement de langue conservant mode/profil, sauvegarde/relecture, inscription isolée au démarrage Windows, masquage/restauration de la fenêtre, métadonnées et versions de mise à jour, somme de contrôle et refus des chemins d'archive dangereux.
 - Les chemins locaux du compilateur sont remappés ; les archives publiques sont contrôlées pour exclure comptes locaux, réglages, raccourcis, journaux personnels et dossiers de compilation.
 
 ## Mesures audio

@@ -36,6 +36,11 @@ public partial class MainWindow : Window
     private DispatcherTimer? _startupTimer;
     private readonly DispatcherTimer _showTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
     private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
+    private readonly CancellationTokenSource _lifetimeCancellation = new();
+    private UpdateRelease? _availableUpdate;
+    private string _updateState = "idle";
+    private int _updateProgress;
+    private bool _updateBusy;
     private string UiLanguage => _settings.Language;
 
     private static readonly string[] StripNames = ["IN1", "IN2", "IN3", "IN4", "IN5", "VAIO", "AUX", "VAIO3"];
@@ -94,6 +99,24 @@ public partial class MainWindow : Window
         ["AEC delay estimate"] = "Estimation du délai AEC",
         ["Start VoiceMeeter AEC when I sign in to Windows"] = "Démarrer VoiceMeeter AEC à l’ouverture de ma session Windows",
         ["The app starts quietly in the system tray and waits for VoiceMeeter."] = "L’application démarre discrètement dans la zone de notification et attend VoiceMeeter.",
+        ["Updates"] = "Mises à jour",
+        ["Current version {0}"] = "Version actuelle {0}",
+        ["Current version {0} · You’re up to date."] = "Version actuelle {0} · Vous êtes à jour.",
+        ["Check for updates automatically"] = "Rechercher automatiquement les mises à jour",
+        ["Checks GitHub Releases once a day. Installation always asks first."] = "Vérifie GitHub Releases une fois par jour. L’installation demande toujours votre accord.",
+        ["Check for updates"] = "Rechercher des mises à jour",
+        ["Checking for updates…"] = "Recherche de mises à jour…",
+        ["Version {0} is available."] = "La version {0} est disponible.",
+        ["Update available"] = "Mise à jour disponible",
+        ["Download and install"] = "Télécharger et installer",
+        ["Downloading update… {0}%"] = "Téléchargement de la mise à jour… {0} %",
+        ["Preparing update…"] = "Préparation de la mise à jour…",
+        ["Could not check for updates."] = "Impossible de rechercher les mises à jour.",
+        ["Update installation failed. Your current version is still installed."] = "Échec de l’installation. Votre version actuelle reste installée.",
+        ["Retry update"] = "Réessayer la mise à jour",
+        ["VoiceMeeter AEC will close, install version {0}, and reopen. Echo cancellation will be interrupted briefly. Continue?"] = "VoiceMeeter AEC va se fermer, installer la version {0}, puis se rouvrir. L’annulation d’écho sera brièvement interrompue. Continuer ?",
+        ["Install update"] = "Installer la mise à jour",
+        ["The update could not be installed."] = "La mise à jour n’a pas pu être installée.",
         ["Technical activity from the audio engine. Useful when setup is not working."] = "Activité technique du moteur audio, utile lorsqu’un réglage ne fonctionne pas.",
         ["Settings saved automatically"] = "Réglages enregistrés automatiquement",
         ["Start echo cancellation"] = "Démarrer l’annulation d’écho",
@@ -162,7 +185,9 @@ public partial class MainWindow : Window
     public MainWindow(string[] arguments)
     {
         _arguments = arguments;
-        _settings = AppSettings.Load();
+        _settings = _arguments.Contains("--preview") || _arguments.Contains("--check-ui")
+            ? new AppSettings()
+            : AppSettings.Load();
         if (_arguments.Contains("--dark")) _settings.Theme = "dark";
         if (_arguments.Contains("--light")) _settings.Theme = "light";
         InitializeComponent();
@@ -317,6 +342,7 @@ public partial class MainWindow : Window
         HoldSlider.Value = _settings.HoldMs;
         DelaySlider.Value = _settings.DelayMs;
         StartupBox.IsChecked = _settings.StartWithWindows;
+        AutomaticUpdatesBox.IsChecked = _settings.CheckForUpdatesAutomatically;
         SelectComboByTag(MicSideBox, _settings.MicrophoneSide);
         SelectComboByTag(SuppressionBox, _settings.Suppression);
         SelectComboByTag(StartModeBox, _settings.StartMode);
@@ -347,6 +373,7 @@ public partial class MainWindow : Window
         _settings.HoldMs = (int)Math.Round(HoldSlider.Value);
         _settings.DelayMs = (int)Math.Round(DelaySlider.Value);
         _settings.StartWithWindows = StartupBox.IsChecked == true;
+        _settings.CheckForUpdatesAutomatically = AutomaticUpdatesBox.IsChecked == true;
     }
 
     private static int SelectedKey(Dictionary<int, RadioButton> buttons, int fallback) =>
@@ -513,6 +540,10 @@ public partial class MainWindow : Window
         DelayLabel.Text = T("AEC delay estimate");
         StartupBox.Content = T("Start VoiceMeeter AEC when I sign in to Windows");
         StartupHelp.Text = T("The app starts quietly in the system tray and waits for VoiceMeeter.");
+        UpdatesHeading.Text = T("Updates");
+        AutomaticUpdatesBox.Content = T("Check for updates automatically");
+        AutomaticUpdatesHelp.Text = T("Checks GitHub Releases once a day. Installation always asks first.");
+        RefreshUpdateText();
         DiagnosticsHelp.Text = T("Technical activity from the audio engine. Useful when setup is not working.");
         UnsavedText.Text = T("Settings saved automatically");
         EngineButton.Content = _engine.Alive ? T("Stop engine") : T("Start echo cancellation");
@@ -575,6 +606,7 @@ public partial class MainWindow : Window
             _icon = resource is null ? SystemIcons.Application : new Icon(resource.Stream);
             _tray = new WinForms.NotifyIcon { Icon = _icon, Visible = true, Text = "VoiceMeeter AEC" };
             _tray.DoubleClick += (_, _) => Dispatcher.Invoke(ShowWindow);
+            _tray.BalloonTipClicked += (_, _) => Dispatcher.Invoke(ShowUpdates);
         }
         var menu = new WinForms.ContextMenuStrip();
         menu.Items.Add(T("Show VoiceMeeter AEC"), null, (_, _) => Dispatcher.Invoke(ShowWindow));
@@ -650,7 +682,13 @@ public partial class MainWindow : Window
         else
         {
             LoadVoiceMeeterLabels();
+            if (_arguments.Contains("--restart-engine")) StartEngine(true);
         }
+
+        _ = Task.Run(UpdateService.CleanupOldUpdateFiles);
+        if (_settings.CheckForUpdatesAutomatically &&
+            (DateTime.UtcNow - _settings.LastUpdateCheckUtc) >= TimeSpan.FromDays(1))
+            await CheckForUpdatesAsync(false);
     }
 
     private void LoadVoiceMeeterLabels()
@@ -682,6 +720,7 @@ public partial class MainWindow : Window
 
     private void ValidateUiMappings()
     {
+        UpdateService.RunSelfTests();
         if (_micButtons.Count != 5 || _referenceButtons.Count != 8 || _busButtons.Count != 5 || _autoButtons.Count != 8)
             throw new InvalidOperationException("The mixer selectors were not created correctly.");
         if (StripStarts[5] != 11 || StripStarts[6] != 19 || StripStarts[7] != 27)
@@ -705,8 +744,10 @@ public partial class MainWindow : Window
             throw new InvalidOperationException("Legacy settings did not receive the default dark theme.");
         var upgraded = AppSettings.Parse("""{"Schema":2,"ReferenceStrip":7}""", false);
         var multiple = AppSettings.Parse("""{"Schema":2,"ReferenceStrips":[6,7]}""", false);
-        if (!upgraded.ReferenceStrips.SequenceEqual([7]) || !multiple.ReferenceStrips.SequenceEqual([6, 7]))
-            throw new InvalidOperationException("Playback-reference settings migration is invalid.");
+        var updatesDisabled = AppSettings.Parse("""{"Schema":2,"CheckForUpdatesAutomatically":false}""", false);
+        if (!upgraded.ReferenceStrips.SequenceEqual([7]) || !multiple.ReferenceStrips.SequenceEqual([6, 7]) ||
+            !upgraded.CheckForUpdatesAutomatically || updatesDisabled.CheckForUpdatesAutomatically)
+            throw new InvalidOperationException("Saved settings migration is invalid.");
         foreach (var language in new[] { "en", "fr" })
         {
             _settings.Language = language;
@@ -738,6 +779,131 @@ public partial class MainWindow : Window
         using var stream = File.Create(path);
         encoder.Save(stream);
     }
+
+    private void RefreshUpdateText()
+    {
+        if (UpdateStatusText is null || UpdateButton is null || UpdateAvailableButton is null) return;
+        var current = UpdateService.CurrentVersionText;
+        UpdateStatusText.Text = _updateState switch
+        {
+            "checking" => T("Checking for updates…"),
+            "current" => string.Format(T("Current version {0} · You’re up to date."), current),
+            "available" when _availableUpdate is not null => string.Format(T("Version {0} is available."), _availableUpdate.VersionText),
+            "downloading" => string.Format(T("Downloading update… {0}%"), _updateProgress),
+            "preparing" => T("Preparing update…"),
+            "install_failed" => T("Update installation failed. Your current version is still installed."),
+            "failed" => T("Could not check for updates."),
+            _ => string.Format(T("Current version {0}"), current)
+        };
+        UpdateButton.Content = _updateState switch
+        {
+            "available" => T("Download and install"),
+            "checking" => T("Checking for updates…"),
+            "downloading" => string.Format(T("Downloading update… {0}%"), _updateProgress),
+            "preparing" => T("Preparing update…"),
+            "install_failed" => T("Retry update"),
+            _ => T("Check for updates")
+        };
+        UpdateButton.IsEnabled = !_updateBusy;
+        AutomaticUpdatesBox.IsEnabled = !_updateBusy;
+        UpdateAvailableButton.Content = "↓  " + T("Update available");
+        UpdateAvailableButton.Visibility = _availableUpdate is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private async Task CheckForUpdatesAsync(bool manual)
+    {
+        if (_updateBusy) return;
+        _updateBusy = true;
+        _updateState = "checking";
+        RefreshUpdateText();
+        try
+        {
+            var release = await UpdateService.CheckAsync(_lifetimeCancellation.Token);
+            _settings.LastUpdateCheckUtc = DateTime.UtcNow;
+            _availableUpdate = release;
+            _updateState = release is null ? "current" : "available";
+            QueueSave();
+            if (release is not null && _tray is not null)
+                _tray.ShowBalloonTip(7000, "VoiceMeeter AEC", string.Format(T("Version {0} is available."), release.VersionText), WinForms.ToolTipIcon.Info);
+        }
+        catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            _updateState = manual ? "failed" : "idle";
+            DiagnosticsBox.Text += Environment.NewLine + "Update check: " + exception.Message;
+            if (manual)
+                System.Windows.MessageBox.Show(this, T("Could not check for updates.") + "\n\n" + exception.Message,
+                    "VoiceMeeter AEC", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            _updateBusy = false;
+            RefreshUpdateText();
+        }
+    }
+
+    private async void Update_Click(object sender, RoutedEventArgs e)
+    {
+        if (_updateBusy) return;
+        if (_availableUpdate is null)
+        {
+            await CheckForUpdatesAsync(true);
+            return;
+        }
+
+        var release = _availableUpdate;
+        var answer = System.Windows.MessageBox.Show(this,
+            string.Format(T("VoiceMeeter AEC will close, install version {0}, and reopen. Echo cancellation will be interrupted briefly. Continue?"), release.VersionText),
+            T("Install update"), MessageBoxButton.OKCancel, MessageBoxImage.Information);
+        if (answer != MessageBoxResult.OK) return;
+
+        var engineWasRunning = _engine.Alive;
+        _updateBusy = true;
+        _updateProgress = 0;
+        _updateState = "downloading";
+        RefreshUpdateText();
+        try
+        {
+            var progress = new Progress<int>(value =>
+            {
+                _updateProgress = value;
+                RefreshUpdateText();
+            });
+            var stagedPackage = await UpdateService.DownloadAndStageAsync(release, progress, _lifetimeCancellation.Token);
+            _updateState = "preparing";
+            RefreshUpdateText();
+            if (engineWasRunning && !await StopEngine(false))
+                throw new InvalidOperationException("The audio engine did not stop in time.");
+            SaveSettingsNow();
+            UpdateService.StartInstaller(stagedPackage, engineWasRunning);
+            _allowClose = true;
+            Close();
+            Application.Current.Shutdown();
+        }
+        catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            _updateState = "install_failed";
+            DiagnosticsBox.Text += Environment.NewLine + "Update install: " + exception;
+            System.Windows.MessageBox.Show(this, T("The update could not be installed.") + "\n\n" + exception.Message,
+                "VoiceMeeter AEC", MessageBoxButton.OK, MessageBoxImage.Error);
+            if (engineWasRunning && !_engine.Alive) StartEngine(true);
+        }
+        finally
+        {
+            _updateBusy = false;
+            RefreshUpdateText();
+        }
+    }
+
+    private void ShowUpdates()
+    {
+        ShowWindow();
+        ShowPage("advanced");
+        Dispatcher.BeginInvoke(() => AdvancedView.ScrollToEnd(), DispatcherPriority.Loaded);
+    }
+
+    private void UpdateAvailable_Click(object sender, RoutedEventArgs e) => ShowUpdates();
 
     private void BeginStartupWait()
     {
@@ -922,6 +1088,8 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _lifetimeCancellation.Cancel();
+        _lifetimeCancellation.Dispose();
         _tray?.Dispose();
         _icon?.Dispose();
         _showTimer.Stop();

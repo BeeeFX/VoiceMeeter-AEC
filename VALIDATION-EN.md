@@ -1,17 +1,17 @@
-# VoiceMeeter AEC 1.0.0 — validation
+# VoiceMeeter AEC 1.1.0 — validation
 
-[Français](VALIDATION.md) · Version 1.0.0
+[Français](VALIDATION.md) · Version 1.1.0
 
-This remains an experimental release. The automated checks pass for Gentle and Balanced. **Strong deliberately exposes the original, more aggressive suppressor and fails some near-end preservation checks.** Passing synthetic tests does not establish transparent speech or production stability.
+The automated checks pass for Gentle and Balanced. **Strong deliberately exposes the original, more aggressive suppressor and fails some near-end preservation checks.** Passing synthetic tests does not establish transparent speech or production stability.
 
 ## Automated evidence
 
-- Six Rust tests cover exact bypass framing across varying callback sizes, bounded hold, missing reference/mute/non-finite input, fades, selective driver recovery, and multi-strip Auto masks including microphone-return exclusions.
+- Seven Rust tests cover exact bypass framing across varying callback sizes, bounded hold, missing reference/mute/non-finite input, fades, selective driver recovery, multi-reference parsing, and multi-strip Auto masks including microphone-return exclusions.
 - Native transport tests cover 34 channels, double buffers, PCM16/24/32 and float32, preserving unselected channels bit-for-bit.
 - The real C++ callback calls the Rust engine through FFI for 300 simulated blocks; framing, immediate mute, channel preservation and invalid-index detection pass.
 - Native event checks cover reset, sample-rate change, latency-only notification, cancellation priority and aggregation of active/inactive/unknown Auto routes.
 - A hidden child process receives M/B/A/T/Q through the same anonymous stdin pipe used by the tray. It verifies the actual native control handling, returns diagnostic output and exits gracefully without opening an audio device.
-- English/French launcher checks cover Auto as the default, language changes preserving selected mode/profile, settings round trips, an isolated Windows startup shortcut enable/disable, and close-to-tray/restore behavior.
+- English/French desktop checks cover Auto as the default, language changes preserving selected mode/profile, settings round trips, isolated Windows startup registration, close-to-tray/restore behavior, update metadata and version parsing, checksum parsing, and rejection of unsafe archive paths.
 - Release builds remap local compiler paths; public archives are checked for developer account paths, saved settings, shortcuts, logs and build directories.
 
 ## Audio measurements

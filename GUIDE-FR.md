@@ -1,6 +1,6 @@
 # VoiceMeeter AEC — configuration Windows x64
 
-[English](GUIDE-EN.md) · Version 1.0.0 · Windows x64 · VoiceMeeter Potato
+[English](GUIDE-EN.md) · Version 1.1.0 · Windows x64 · VoiceMeeter Potato
 
 VoiceMeeter AEC atténue les sons des enceintes repris par le micro. Il utilise **Voicemeeter Potato Insert Virtual ASIO**, avant les effets de piste. VoiceMeeter garde le contrôle du matériel. L'application ne modifie ni les routes, ni les PATCH INSERT, ni les périphériques Windows par défaut.
 
@@ -72,6 +72,8 @@ L'application attend VoiceMeeter jusqu'à 90 secondes et retente certains échec
 Les réglages sont dans `%LOCALAPPDATA%\VoiceMeeterAEC\settings.json` : colonnes choisies, surveillance Auto, bus des enceintes, délais, mode, suppression et langue. Ils sont enregistrés automatiquement. Les changements liés au démarrage s'appliquent au prochain lancement du moteur ; désactiver PATCH INSERT, arrêter, puis relancer.
 
 Le démarrage utilise le réglage Windows Run de l'utilisateur, sans droits administrateur ni service. Désactiver l'option pour le retirer. Après déplacement ou mise à jour, ouvrir une fois la nouvelle copie pour actualiser son chemin de démarrage.
+
+Dans **Avancé → Mises à jour**, l'application peut rechercher la dernière version stable sur GitHub une fois par jour ou à la demande. Elle propose uniquement une version plus récente, demande confirmation avant l'installation, vérifie le ZIP Windows avec sa somme SHA-256 publiée, se ferme brièvement, remplace les fichiers portables puis se rouvre. Si le moteur fonctionnait, l'application mise à jour le redémarre. Les réglages restent dans les données locales et ne sont pas remplacés.
 
 Pour désinstaller : désactiver le démarrage et enregistrer, désactiver PATCH INSERT, quitter par l'icône, puis retirer le dossier. Les réglages/journaux locaux peuvent être retirés séparément. Les journaux contiennent du texte, jamais d'audio ; rotation à environ 2 Mio plus un segment précédent.
 

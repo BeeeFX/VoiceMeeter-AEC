@@ -12,6 +12,11 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (UpdateService.TryApplyUpdate(e.Args, out var updateExitCode))
+        {
+            Shutdown(updateExitCode);
+            return;
+        }
         _mutex = new Mutex(true, "Local\\VoiceMeeterAECDesktopApp", out var firstInstance);
         if (!e.Args.Contains("--preview") && !e.Args.Contains("--check-ui"))
             ShowSignal = new EventWaitHandle(false, EventResetMode.AutoReset, "Local\\VoiceMeeterAECShowWindow");

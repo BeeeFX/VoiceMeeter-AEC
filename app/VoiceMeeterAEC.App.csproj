@@ -9,7 +9,7 @@
     <AssemblyName>VoiceMeeter AEC</AssemblyName>
     <RootNamespace>VoiceMeeterAEC</RootNamespace>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Authors>BeeeFX</Authors>
     <Product>VoiceMeeter AEC</Product>
     <Description>Simple acoustic echo cancellation for VoiceMeeter Potato.</Description>

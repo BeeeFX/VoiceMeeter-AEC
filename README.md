@@ -34,7 +34,7 @@ The audio engine remains focused and low-level. The desktop app turns its channe
 3. Open **Setup guide** inside the app, then follow its PATCH INSERT and verification steps.
 4. Select **Start echo cancellation**. Auto mode enables AEC when the chosen playback route is active and bypasses it when that route is inactive.
 
-Your normal controls remain available from the window and the system tray: **Auto, AEC on, Bypass, and Mute**. Settings save automatically. Optional Windows startup and tuning controls are under **Advanced**.
+Your normal controls remain available from the window and the system tray: **Auto, AEC on, Bypass, and Mute**. Settings save automatically. Optional Windows startup, tuning controls, and updates are under **Advanced**. The app checks the latest stable GitHub release at most once a day and asks before installing anything.
 
 | Guided first run | Clean advanced controls |
 |:---:|:---:|

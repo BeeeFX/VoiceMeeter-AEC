@@ -1,6 +1,6 @@
 # Licenses and provenance
 
-VoiceMeeter AEC project code is licensed under GPL-3.0-only. See LICENSE. This is an independent early-access project for VoiceMeeter Potato.
+VoiceMeeter AEC project code is licensed under GPL-3.0-only. See LICENSE. This is an independent project for VoiceMeeter Potato.
 
 The three headers in vendor/asio come from audiosdk/asio commit 496a0765b8bb9c26f764f22f9a9712a937177db2. This distribution explicitly uses the GPL version 3 option of vendor/asio/LICENSE.txt, not its proprietary licensing option.
 
@@ -12,4 +12,4 @@ Architecture inspiration and inspection: windows-aec-bridge commit c24505d85df88
 
 ASIO and VoiceMeeter names belong to their respective owners. Installed audio drivers are not redistributed. See Build.cmd and GUIDE-EN.md for offline reconstruction with Rust and Visual C++/Windows SDK already installed. Corresponding project source and vendored dependencies accompany the binary.
 
-Version 1.0.0 selects the local BSD-3-Clause Sonora source in patches/sonora. Its modifications are documented in patches/README.md; pristine source remains in vendor/rust/sonora. Corresponding patched source is included in release archives.
+Version 1.1.0 selects the local BSD-3-Clause Sonora source in patches/sonora. Its modifications are documented in patches/README.md; pristine source remains in vendor/rust/sonora. Corresponding patched source is included in release archives.

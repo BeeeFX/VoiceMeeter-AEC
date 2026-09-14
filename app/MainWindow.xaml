@@ -45,6 +45,7 @@
         </StackPanel>
 
         <StackPanel Grid.Row="3" Margin="8,0,8,7">
+          <Button x:Name="UpdateAvailableButton" Content="↓  Update available" Style="{StaticResource NavButton}" Padding="0,9" Margin="0,0,0,5" Visibility="Collapsed" Click="UpdateAvailable_Click" />
           <Button x:Name="ThemeButton" Content="☀  Light mode" Style="{StaticResource NavButton}" Padding="0,9" Click="Theme_Click" />
           <TextBlock x:Name="LanguageLabel" Text="Language" Foreground="{DynamicResource SubtleInk}" Margin="0,12,0,6" FontSize="11" />
           <ComboBox x:Name="LanguageBox" SelectedIndex="0" SelectionChanged="LanguageBox_SelectionChanged">
@@ -245,11 +246,24 @@
               </StackPanel>
             </Border>
 
-            <Border Style="{StaticResource Card}" Margin="0,0,0,8">
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
               <StackPanel>
                 <CheckBox x:Name="StartupBox" Content="Start VoiceMeeter AEC when I sign in to Windows" Checked="SettingChanged" Unchecked="SettingChanged" />
                 <TextBlock x:Name="StartupHelp" Text="The app starts quietly in the system tray and waits for VoiceMeeter." Foreground="{DynamicResource MutedInk}" Margin="25,5,0,0" />
               </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,8">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <StackPanel Margin="0,0,24,0">
+                  <TextBlock x:Name="UpdatesHeading" Text="Updates" FontSize="16" FontWeight="SemiBold" />
+                  <TextBlock x:Name="UpdateStatusText" Text="Current version 1.1.0" Foreground="{DynamicResource MutedInk}" Margin="0,5,0,11" TextWrapping="Wrap" />
+                  <CheckBox x:Name="AutomaticUpdatesBox" Content="Check for updates automatically" Checked="SettingChanged" Unchecked="SettingChanged" />
+                  <TextBlock x:Name="AutomaticUpdatesHelp" Text="Checks GitHub Releases once a day. Installation always asks first." Foreground="{DynamicResource MutedInk}" Margin="25,5,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+                <Button x:Name="UpdateButton" Grid.Column="1" Content="Check for updates" Style="{StaticResource SecondaryButton}" Padding="15,9" VerticalAlignment="Center" Click="Update_Click" />
+              </Grid>
             </Border>
           </StackPanel>
         </ScrollViewer>

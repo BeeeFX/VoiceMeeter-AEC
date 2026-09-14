@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0 — automatic updates
+
+- Check the latest stable GitHub release quietly at most once a day, with an optional manual check under Advanced.
+- Show a compact in-app and system-tray notification only when a newer version is available. Installation always requires a click and confirmation.
+- Download the matching Windows x64 package, verify it against the release's SHA-256 file, reject unsafe archive paths, replace the portable app with rollback protection, and reopen it automatically.
+- Restore the audio engine after updating when it was running before the update, and preserve all user settings in the local application-data folder.
+
 ## 1.0.0 — first polished release
 
 - Replace the PowerShell settings form with a self-contained modern Windows desktop app, a new application/tray icon, and a dark-first visual design with a saved light theme.

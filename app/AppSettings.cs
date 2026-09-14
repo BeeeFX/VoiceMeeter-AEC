@@ -27,6 +27,8 @@ public sealed class AppSettings
     public int HoldMs { get; set; }
     public int DelayMs { get; set; }
     public bool StartWithWindows { get; set; }
+    public bool CheckForUpdatesAutomatically { get; set; } = true;
+    public DateTime LastUpdateCheckUtc { get; set; }
     [JsonIgnore] public bool MigratedFromLegacy { get; private set; }
 
     public static string DataDirectory => Path.Combine(
@@ -142,5 +144,6 @@ public sealed class AppSettings
         if (Suppression is not ("gentle" or "balanced" or "strong")) Suppression = "gentle";
         HoldMs = Math.Clamp(HoldMs, 0, 250);
         DelayMs = Math.Clamp(DelayMs, 0, 500);
+        if (LastUpdateCheckUtc > DateTime.UtcNow.AddDays(1)) LastUpdateCheckUtc = default;
     }
 }

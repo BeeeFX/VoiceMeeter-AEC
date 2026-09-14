@@ -1,6 +1,6 @@
 # VoiceMeeter AEC — Windows x64 setup
 
-[Français](GUIDE-FR.md) · Version 1.0.0 · Windows x64 · VoiceMeeter Potato
+[Français](GUIDE-FR.md) · Version 1.1.0 · Windows x64 · VoiceMeeter Potato
 
 VoiceMeeter AEC attenuates speaker playback picked up by a microphone. It processes the microphone through **Voicemeeter Potato Insert Virtual ASIO**, before VoiceMeeter strip effects. VoiceMeeter retains control of the hardware. The app does not change routes, patch settings or Windows default devices.
 
@@ -72,6 +72,8 @@ It waits up to 90 seconds for VoiceMeeter and retries selected initial driver fa
 Settings are in `%LOCALAPPDATA%\VoiceMeeterAEC\settings.json`: selected columns, Auto scope, speaker bus, timing, starting mode, suppression and language. They save automatically. Changes that affect engine startup apply the next time the engine starts; disable PATCH INSERT, stop, and reopen it first.
 
 Startup uses the current user's Windows Run setting, with no administrator rights or service. Disable the option to remove it. After moving or upgrading the app, open the new copy once so the saved startup path can be refreshed.
+
+Under **Advanced → Updates**, the app can check the latest stable GitHub release once a day or on demand. It only offers a newer version, asks before installation, verifies the Windows ZIP against its published SHA-256 file, closes briefly, replaces the portable files and reopens. If the engine was running, the updated app starts it again. Settings remain in local application data and are not replaced.
 
 To remove the app: disable startup and save, disable PATCH INSERT, exit from the tray, then remove its folder. Local settings/logs can be removed separately. Diagnostics are text only, never audio; rotation is approximately 2 MiB plus one previous segment.
 
