@@ -109,7 +109,8 @@ bool ok(ASIOError e,const char* stage){if(e==ASE_OK)return true;std::fprintf(std
 // Read-only Remote API. Never resolve or call any SetParameter function.
 struct Remote {
  HMODULE dll=nullptr;using Simple=long(__stdcall*)();using Get=long(__stdcall*)(char*,float*);
- Simple logout=nullptr,dirty=nullptr;Get get=nullptr;bool logged=false;
+ Simple logout=nullptr,dirty=nullptr;Get get=nullptr;bool logged=false;int strips=8;
+ explicit Remote(int strip_count=8):strips(strip_count){}
  bool open(){
   dll=LoadLibraryExW(L"C:\\Program Files (x86)\\VB\\Voicemeeter\\VoicemeeterRemote64.dll",nullptr,LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR|LOAD_LIBRARY_SEARCH_SYSTEM32);
   if(!dll)return false;
@@ -126,39 +127,42 @@ struct Remote {
   auto read=[&](const char* kind,int index,const char* field,float& out){std::snprintf(key,sizeof(key),"%s[%d].%s",kind,index,field);return get(key,&out)==0&&std::isfinite(out);};
   char routekey[8];std::snprintf(routekey,sizeof(routekey),"A%d",bus+1);
   if(!read("Strip",strip,routekey,route)||!read("Strip",strip,"Mute",sm)||!read("Bus",bus,"Mute",bm)||!read("Strip",strip,"Gain",sg)||!read("Bus",bus,"Gain",bg))return -1;
-  for(int i=0;i<8;i++){float s=0;if(!read("Strip",i,"Solo",s))return -1;if(s>0.5f)anysolo=true;if(i==strip)solo=s;}
+  for(int i=0;i<strips;i++){float s=0;if(!read("Strip",i,"Solo",s))return -1;if(s>0.5f)anysolo=true;if(i==strip)solo=s;}
   char layerkey[32];std::snprintf(layerkey,sizeof(layerkey),"GainLayer[%d]",bus);if(!read("Strip",strip,layerkey,layer))return -1; return route_active(route,sm,bm,sg,bg,layer,anysolo,solo)?1:0;
  }
  int state_mask(int mask,int bus){
   int result=0;
-  for(int i=0;i<8;i++)if(mask&(1<<i)){result=combine_route_states(result,state(i,bus));if(result==1)return 1;}
+  for(int i=0;i<strips;i++)if(mask&(1<<i)){result=combine_route_states(result,state(i,bus));if(result==1)return 1;}
   return result;
  }
  ~Remote(){if(logged&&logout)logout();if(dll)FreeLibrary(dll);}
 };
 }
-extern "C" int asio_run(void* ctx,int m,uint64_t ref_left,uint64_t ref_right,uint64_t ret,int initial,int seconds,int probe,int auto_mask,int auto_bus,int* final_mode){
+extern "C" int asio_run(void* ctx,int m,uint64_t ref_left,uint64_t ref_right,uint64_t ret,int initial,int seconds,int probe,int auto_mask,int auto_bus,int edition,int* final_mode){
  setvbuf(stdout,nullptr,_IONBF,0);
  struct HostWindow { HWND h; ~HostWindow(){if(h)DestroyWindow(h);} } hostWindow{
   CreateWindowExW(0,L"STATIC",L"VoiceMeeter AEC",0,0,0,0,0,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr)
  };
- struct InstanceGuard {HANDLE h;~InstanceGuard(){if(h)CloseHandle(h);}} instance{CreateMutexW(nullptr,FALSE,L"Local\\PotatoAECInsertPrototype")}; if(!instance.h||GetLastError()==ERROR_ALREADY_EXISTS){std::fprintf(stderr,"VoiceMeeter AEC is already running.\n");return 22;}
+ struct InstanceGuard {HANDLE h;~InstanceGuard(){if(h)CloseHandle(h);}} instance{CreateMutexW(nullptr,FALSE,L"Local\\VoiceMeeterAECInsert")}; if(!instance.h||GetLastError()==ERROR_ALREADY_EXISTS){std::fprintf(stderr,"VoiceMeeter AEC is already running.\n");return 22;}
  reset_session_state(initial);
+ if(edition!=1&&edition!=2){std::fprintf(stderr,"VoiceMeeter edition is invalid.\n");return 9;}
+ const bool banana=edition==1;const wchar_t* driver_key=banana?L"SOFTWARE\\ASIO\\Voicemeeter Insert Virtual ASIO":L"SOFTWARE\\ASIO\\Voicemeeter Potato Insert Virtual ASIO";
+ const char* edition_name=banana?"Banana":"Potato";const long expected_channels=banana?22:34;const int strip_count=banana?5:8;const int bus_count=banana?3:5;
  HKEY key=nullptr;
- if(RegOpenKeyExW(HKEY_LOCAL_MACHINE,L"SOFTWARE\\ASIO\\Voicemeeter Potato Insert Virtual ASIO",0,KEY_READ|KEY_WOW64_64KEY,&key)!=ERROR_SUCCESS){std::fprintf(stderr,"Potato Insert x64 driver is missing.\n");return 10;}
+ if(RegOpenKeyExW(HKEY_LOCAL_MACHINE,driver_key,0,KEY_READ|KEY_WOW64_64KEY,&key)!=ERROR_SUCCESS){std::fprintf(stderr,"%s Insert x64 driver is missing.\n",edition_name);return 10;}
  wchar_t text[128]{};DWORD size=sizeof(text),type=0;
  auto rr=RegQueryValueExW(key,L"CLSID",nullptr,&type,reinterpret_cast<BYTE*>(text),&size);RegCloseKey(key);CLSID id{};
  if(rr!=ERROR_SUCCESS||type!=REG_SZ||FAILED(CLSIDFromString(text,&id)))return 11;
  if(FAILED(CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED)))return 12;
- int result=0;bool created=false,started=false;Remote remote;bool automatic=initial==3;
+ int result=0;bool created=false,started=false;Remote remote(strip_count);bool automatic=initial==3;
  do {
   if(FAILED(CoCreateInstance(id,nullptr,CLSCTX_INPROC_SERVER,id,reinterpret_cast<void**>(&driver)))){result=13;break;}
   if(!hostWindow.h||!driver->init(hostWindow.h)){result=14;break;}
   long ins=0,outs=0,min=0,max=0,preferred=0,gran=0,inlat=0,outlat=0;double rate=0;
   if(!ok(driver->getChannels(&ins,&outs),"channels")||!ok(driver->getSampleRate(&rate),"sample rate")||!ok(driver->getBufferSize(&min,&max,&preferred,&gran),"buffer")){result=15;break;}
   driver->getLatencies(&inlat,&outlat);
-  std::printf("Insert Potato: %ld inputs / %ld outputs; %.0f Hz; buffer %ld (min %ld max %ld).\nDriver-reported latency: input %ld, output %ld samples.\n",ins,outs,rate,preferred,min,max,inlat,outlat);
-  if(ins!=outs||ins<1||ins>34||preferred<1||preferred>8192||rate!=48000.){result=16;break;}
+  std::printf("Insert %s: %ld inputs / %ld outputs; %.0f Hz; buffer %ld (min %ld max %ld).\nDriver-reported latency: input %ld, output %ld samples.\n",edition_name,ins,outs,rate,preferred,min,max,inlat,outlat);
+  if(ins!=outs||ins!=expected_channels||preferred<1||preferred>8192||rate!=48000.){result=16;break;}
   channels=ins;frames=preferred;formats.resize(channels);bool valid=true;
   for(long c=0;c<channels;c++){
    ASIOChannelInfo a{},b{};a.channel=b.channel=c;a.isInput=ASIOTrue;b.isInput=ASIOFalse;
@@ -168,7 +172,7 @@ extern "C" int asio_run(void* ctx,int m,uint64_t ref_left,uint64_t ref_right,uin
   }
   if(!valid){std::fprintf(stderr,"Unsupported format; no stream opened.\n");result=17;break;}
   if(probe)break;
-  if(!ctx||m<0||m>=channels||ref_left==0||ref_right==0||((ref_left|ref_right|ret)>>channels)!=0){result=18;break;}
+  if(!ctx||m<0||m>=channels||ref_left==0||ref_right==0||((ref_left|ref_right|ret)>>channels)!=0||auto_mask<0||(auto_mask>>strip_count)!=0||auto_bus<0||auto_bus>=bus_count){result=18;break;}
   engine=ctx;mic=m;reference_left=ref_left;reference_right=ref_right;returns=ret;mode=initial==3?0:initial;
   if(auto_mask>0&&!remote.open()){std::fprintf(stderr,"Remote API unavailable: Auto cannot read routing; Auto mode keeps AEC on.\n");if(automatic)mode=0;}
   micdata.resize(frames);leftdata.resize(frames);rightdata.resize(frames);clean.resize(frames);buffers.resize(channels*2);
@@ -220,15 +224,15 @@ extern "C" int asio_transport_test(){
  reset_session_state(1);rate_changed(44100.);if(fault.load()!=3||mode.load()!=1)return 7;
  reset_session_state(0);
  if(!route_active(1,0,0,0,0,0,false,0)||route_active(0,0,0,0,0,0,false,0)||route_active(1,1,0,0,0,0,false,0)||route_active(1,0,1,0,0,0,false,0)||route_active(1,0,0,-60,0,0,false,0)||route_active(1,0,0,0,0,-60,false,0)||route_active(1,0,0,0,0,0,true,0)||!route_active(1,0,0,0,0,0,true,1))return 4;
- for(auto t:{ASIOSTFloat32LSB,ASIOSTInt32LSB,ASIOSTInt24LSB,ASIOSTInt16LSB}){
+ for(auto t:{ASIOSTFloat32LSB,ASIOSTInt32LSB,ASIOSTInt24LSB,ASIOSTInt16LSB})for(long layout_channels:{22L,34L}){
   unsigned char b[32]{};int i=0;for(float v:{-1.f,-0.5f,0.f,0.123f,0.999f,1.f}){write_sample(b,i,t,v);if(std::abs(read_sample(b,i,t)-v)>0.00004f)return 1;i++;}
-  channels=34;frames=192;returns=3;formats.assign(34,t);buffers.assign(68,{});clean.assign(192,0.25f);
-  std::vector<std::vector<unsigned char>> data(136,std::vector<unsigned char>(192*bytes(t)));
-  for(int c=0;c<68;c++)for(int j=0;j<2;j++){buffers[c].buffers[j]=data[c*2+j].data();for(size_t k=0;k<data[c*2+j].size();k++)data[c*2+j][k]=static_cast<unsigned char>(c*7+k+j);}
-  for(int j=0;j<2;j++){transfer(j);for(int c=2;c<34;c++)if(data[c*2+j]!=data[(c+34)*2+j])return 2;
-   for(int c=0;c<2;c++)for(int k=0;k<192;k++)if(std::abs(read_sample(buffers[34+c].buffers[j],k,t)-0.25f)>0.00004f)return 3;
+  channels=layout_channels;frames=192;returns=3;formats.assign(channels,t);buffers.assign(channels*2,{});clean.assign(192,0.25f);
+  std::vector<std::vector<unsigned char>> data(size_t(channels)*4,std::vector<unsigned char>(192*bytes(t)));
+  for(int c=0;c<channels*2;c++)for(int j=0;j<2;j++){buffers[c].buffers[j]=data[c*2+j].data();for(size_t k=0;k<data[c*2+j].size();k++)data[c*2+j][k]=static_cast<unsigned char>(c*7+k+j);}
+  for(int j=0;j<2;j++){transfer(j);for(int c=2;c<channels;c++)if(data[c*2+j]!=data[(c+channels)*2+j])return 2;
+   for(int c=0;c<2;c++)for(int k=0;k<192;k++)if(std::abs(read_sample(buffers[channels+c].buffers[j],k,t)-0.25f)>0.00004f)return 3;
   }
- }std::puts("Transport: 34 channels, double buffer, 4 formats, other channels unchanged: OK.");return 0;
+ }std::puts("Transport: Banana 22 + Potato 34 channels, double buffer, 4 formats, other channels unchanged: OK.");return 0;
 }
 
 // Integration test for the launcher's actual anonymous pipe, without a driver.

@@ -12,11 +12,12 @@
     <Version>1.1.0</Version>
     <Authors>BeeeFX</Authors>
     <Product>VoiceMeeter AEC</Product>
-    <Description>Simple acoustic echo cancellation for VoiceMeeter Potato.</Description>
+    <Description>Simple acoustic echo cancellation for VoiceMeeter Banana and Potato.</Description>
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="Assets\app-icon-256.png" />
     <Resource Include="Assets\app.ico" />
     <Resource Include="Assets\voicemeeter-patch-insert.png" />
+    <Resource Include="Assets\voicemeeter-banana-patch-insert.png" />
   </ItemGroup>
 </Project>

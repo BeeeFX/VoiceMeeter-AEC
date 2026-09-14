@@ -1,14 +1,14 @@
 # VoiceMeeter AEC — configuration Windows x64
 
-[English](GUIDE-EN.md) · Version 1.1.0 · Windows x64 · VoiceMeeter Potato
+[English](GUIDE-EN.md) · Version 1.1.0 · Windows x64 · VoiceMeeter Banana ou Potato
 
-VoiceMeeter AEC atténue les sons des enceintes repris par le micro. Il utilise **Voicemeeter Potato Insert Virtual ASIO**, avant les effets de piste. VoiceMeeter garde le contrôle du matériel. L'application ne modifie ni les routes, ni les PATCH INSERT, ni les périphériques Windows par défaut.
+VoiceMeeter AEC atténue les sons des enceintes repris par le micro. Il utilise le pilote **VoiceMeeter Banana ou Potato Insert Virtual ASIO** correspondant, avant les effets de piste. VoiceMeeter garde le contrôle du matériel. L'application ne modifie ni les routes, ni les PATCH INSERT, ni les périphériques Windows par défaut.
 
 ## Premier démarrage
 
 1. Extraire le ZIP Windows dans un dossier permanent et ouvrir **VoiceMeeter AEC.exe**. L'application est autonome : PowerShell et .NET ne sont pas nécessaires.
-2. Démarrer VoiceMeeter Potato à **48 kHz** et y configurer le micro et les enceintes normalement.
-3. Dans l'application, choisir la colonne contenant le microphone et une ou plusieurs colonnes de lecture contenant tous les sons joués par les enceintes. Leur son devient la référence d'écho. Choisir le bus A relié aux enceintes afin qu'Auto sache quelle route surveiller. L'application traduit automatiquement ces colonnes en canaux Insert.
+2. Démarrer VoiceMeeter Banana ou Potato à **48 kHz** et y configurer le micro et les enceintes normalement. L'application détecte l'édition ouverte ; le sélecteur permet aussi de la choisir lorsque VoiceMeeter est fermé.
+3. Dans l'application, choisir la colonne contenant le microphone et une ou plusieurs colonnes de lecture contenant tous les sons joués par les enceintes. Leur son devient la référence d'écho. Choisir le bus A relié aux enceintes afin qu'Auto sache quelle route surveiller. L'application affiche uniquement les colonnes et bus de cette édition, puis les traduit automatiquement en canaux Insert.
 4. Garder les retours PATCH INSERT du micro désactivés et sélectionner **Démarrer l'annulation d'écho**. Ouvrir **Diagnostic** et vérifier que le pilote Insert indique 48 kHz et que le compteur `blocks` avance. Un seul client Insert peut fonctionner à la fois.
 5. Dans VoiceMeeter, ouvrir **Menu → System Settings / Options → PATCH INSERT**. Au point PRE-FX, activer gauche et droite uniquement pour la colonne du microphone. Laisser tous les autres retours désactivés.
 6. Dans une application recevant le bus micro VoiceMeeter, essayer **Couper le micro**, **Bypass** et **AEC actif** depuis l'application ou son icône. Ne pas envoyer le micro vers les enceintes.
@@ -20,13 +20,27 @@ VoiceMeeter AEC atténue les sons des enceintes repris par le micro. Il utilise 
 
 La référence doit contenir tous les sons dont on veut retirer l'écho, et exclure le micro brut ou traité. Sélectionner autant de colonnes de lecture que nécessaire. L'application combine la première paire stéréo de chaque colonne choisie avant de l'envoyer à l'AEC.
 
-Si toute la lecture passe par **VAIO**, sélectionner uniquement VAIO. Si le son des enceintes est réparti entre VAIO, AUX, VAIO3 ou des entrées matérielles, sélectionner chaque colonne concernée. Les sources lues directement hors de VoiceMeeter ne peuvent pas être incluses. Seule la première paire gauche/droite de chaque piste virtuelle est utilisée ; les canaux surround supplémentaires ne le sont pas.
+Si toute la lecture passe par **VAIO**, sélectionner uniquement VAIO. Si le son des enceintes est réparti entre VAIO, AUX, des entrées matérielles ou VAIO3 sur Potato, sélectionner chaque colonne concernée. Les sources lues directement hors de VoiceMeeter ne peuvent pas être incluses. Seule la première paire gauche/droite de chaque piste virtuelle est utilisée ; les canaux surround supplémentaires ne le sont pas.
 
 L'Insert fournit un signal avant effets et fader, pas le mix final du bus. Des effets différents, de la saturation ou des changements brusques de volume peuvent réduire l'annulation.
 
 ## Canaux et Auto
 
-Numérotation à partir de 1 : canaux Insert Potato, pas canaux physiques de la carte son.
+Numérotation à partir de 1 : canaux Insert de l'édition choisie, pas canaux physiques de la carte son.
+
+### Banana
+
+| Piste | Canaux Insert | Numéro Auto |
+|---|---|---|
+| IN1 | 1,2 | 1 |
+| IN2 | 3,4 | 2 |
+| IN3 | 5,6 | 3 |
+| VAIO | 7–14 ; stéréo 7,8 | 4 |
+| AUX | 15–22 ; stéréo 15,16 | 5 |
+
+Auto peut surveiller A1, A2 ou A3 sur Banana.
+
+### Potato
 
 | Piste | Canaux Insert | Numéro Auto |
 |---|---|---|
@@ -39,9 +53,9 @@ Numérotation à partir de 1 : canaux Insert Potato, pas canaux physiques de la 
 | AUX | 19–26 ; stéréo 19,20 | 7 |
 | VAIO3 | 27–34 ; stéréo 27,28 | 8 |
 
-**Pistes choisies :** dans Avancé, sélectionner par exemple VAIO, AUX et VAIO3. L'AEC est actif si au moins une route choisie vers le bus est active. Défaut : VAIO vers A2. Choisir le bus relié aux enceintes.
+**Pistes choisies :** dans Avancé, sélectionner par exemple VAIO, AUX et, sur Potato, VAIO3. L'AEC est actif si au moins une route choisie vers le bus est active. Défaut : VAIO vers A2. Choisir le bus relié aux enceintes.
 
-**Toutes les pistes vers le bus :** surveiller les routes des huit pistes vers A1, A2, A3, A4 ou A5. Les pistes recevant les retours micro configurés sont exclues. Si d'autres pistes portent des retours micro traités, utiliser Pistes choisies pour les exclure aussi.
+**Toutes les pistes vers le bus :** surveiller les cinq pistes Banana vers A1–A3 ou les huit pistes Potato vers A1–A5. La piste recevant le retour micro configuré est exclue. Si une autre piste porte un retour micro traité, utiliser Pistes choisies pour l'exclure aussi.
 
 Auto suit **le routage, pas le niveau sonore instantané** : boutons de route, silence, gains de piste/bus, gains propres au bus et solo. Une route active mais silencieuse ne désactive pas Auto. Si toutes les routes surveillées sont inactives, il utilise le bypass. Si la lecture du routage échoue, il garde l'AEC actif. Il ne change ni les sorties ni les routes.
 
@@ -69,7 +83,7 @@ Les réglages sont enregistrés automatiquement. Après un essai réussi, choisi
 
 L'application attend VoiceMeeter jusqu'à 90 secondes et retente certains échecs initiaux toutes les cinq secondes. Une panne est signalée par l'icône. Elle ne redémarre pas indéfiniment : la reprise native après reset/stall reste limitée à deux essais. Un appel de pilote bloqué peut dépasser le délai d'attente.
 
-Les réglages sont dans `%LOCALAPPDATA%\VoiceMeeterAEC\settings.json` : colonnes choisies, surveillance Auto, bus des enceintes, délais, mode, suppression et langue. Ils sont enregistrés automatiquement. Les changements liés au démarrage s'appliquent au prochain lancement du moteur ; désactiver PATCH INSERT, arrêter, puis relancer.
+Les réglages sont dans `%LOCALAPPDATA%\VoiceMeeterAEC\settings.json` : édition VoiceMeeter, colonnes choisies, surveillance Auto, bus des enceintes, délais, mode, suppression et langue. Ils sont enregistrés automatiquement. Les changements liés au démarrage s'appliquent au prochain lancement du moteur ; désactiver PATCH INSERT, arrêter, puis relancer.
 
 Le démarrage utilise le réglage Windows Run de l'utilisateur, sans droits administrateur ni service. Désactiver l'option pour le retirer. Après déplacement ou mise à jour, ouvrir une fois la nouvelle copie pour actualiser son chemin de démarrage.
 
@@ -93,12 +107,13 @@ Le lancement direct de l'exécutable conserve une console :
 .\voicemeeter-aec.exe --help
 .\voicemeeter-aec.exe --self-test
 .\voicemeeter-aec.exe --self-test --suppression balanced
-.\voicemeeter-aec.exe --run --mic 1 --ref 11,12 --returns 1,2 --auto-strips 6,7,8 --auto-bus 2
-.\voicemeeter-aec.exe --run --mic 1 --ref 11,12,19,20,27,28 --returns 1,2 --auto-strips 6,7,8 --auto-bus 2
-.\voicemeeter-aec.exe --run --mic 1 --ref 11,12 --returns 1,2 --auto-strips all --auto-bus 2 --suppression balanced
+.\voicemeeter-aec.exe --probe --edition banana
+.\voicemeeter-aec.exe --run --edition banana --mic 1 --ref 7,8,15,16 --returns 1,2 --auto-strips 4,5 --auto-bus 2
+.\voicemeeter-aec.exe --run --edition potato --mic 1 --ref 11,12,19,20,27,28 --returns 1,2 --auto-strips 6,7,8 --auto-bus 2
+.\voicemeeter-aec.exe --run --edition potato --mic 1 --ref 11,12 --returns 1,2 --auto-strips all --auto-bus 2 --suppression balanced
 ```
 
-Modes : `--aec`, `--bypass`, `--mute`, `--auto` (défaut Auto). Touches : A/B/M/T/Q. `--auto-strip` reste un alias de `--auto-strips`. `--auto-check` lit VAIO/A2 ; `--probe` interroge le pilote sans flux, lorsque sa place client est libre. Aide et autotests n'ouvrent aucun périphérique audio. Un flux exige `--run`.
+Modes : `--aec`, `--bypass`, `--mute`, `--auto` (défaut Auto). Touches : A/B/M/T/Q. `--auto-strip` reste un alias de `--auto-strips`. `--probe --edition banana|potato` interroge le pilote choisi sans flux, lorsque sa place client est libre. Aide et autotests n'ouvrent aucun périphérique audio. Un flux exige `--run` ; la ligne de commande utilise Potato si `--edition` est omis.
 
 Lancer **Build.cmd** depuis les sources. Windows x64, Rust 1.91+, Visual C++, Windows SDK et .NET 8 SDK ou plus récent sont requis. Les dépendances Rust, les en-têtes ASIO et le correctif Sonora sont inclus. La compilation produit une application WPF autonome ; les utilisateurs n'ont pas besoin d'installer .NET. Le moteur audio non signé nécessite le runtime Visual C++ x64.
 

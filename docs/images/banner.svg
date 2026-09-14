@@ -38,10 +38,10 @@
       <g transform="translate(505 337)" font-size="17" font-weight="600" letter-spacing="1">
         <rect width="151" height="42" rx="21" fill="#142b3c" stroke="#27485c" />
         <text x="75.5" y="27" text-anchor="middle" fill="#b9c9d4">WINDOWS x64</text>
-        <rect x="165" width="224" height="42" rx="21" fill="#142b3c" stroke="#27485c" />
-        <text x="277" y="27" text-anchor="middle" fill="#b9c9d4">POTATO INSERT</text>
-        <rect x="403" width="112" height="42" rx="21" fill="#12373d" stroke="#20c5c7" />
-        <text x="459" y="27" text-anchor="middle" fill="#89e7e9">48 kHz</text>
+        <rect x="165" width="298" height="42" rx="21" fill="#142b3c" stroke="#27485c" />
+        <text x="314" y="27" text-anchor="middle" fill="#b9c9d4">BANANA + POTATO</text>
+        <rect x="477" width="112" height="42" rx="21" fill="#12373d" stroke="#20c5c7" />
+        <text x="533" y="27" text-anchor="middle" fill="#89e7e9">48 kHz</text>
       </g>
     </g>
   </g>

@@ -14,6 +14,7 @@ unsafe extern "C" {
         probe: i32,
         auto_mask: i32,
         auto_bus: i32,
+        edition: i32,
         final_mode: *mut i32,
     ) -> i32;
     fn asio_transport_test() -> i32;
@@ -62,11 +63,11 @@ fn cli() -> Result<(), String> {
     if args.is_empty() || args.iter().any(|x| x == "--help") {
         println!(
             "VoiceMeeter AEC — audio engine · 48 kHz\nNo arguments: no audio device is opened.\n\
---self-test : synthetic validation without a driver\n--probe : query Insert Potato without streaming\n\
---run --mic 1 --ref 11,12[,19,20...] --returns 1,2 [--bypass] [--mute] [--auto]\n\
+--self-test : synthetic validation without a driver\n--probe [--edition banana|potato] : query an Insert driver without streaming\n\
+--run --edition banana|potato --mic 1 --ref 7,8[,15,16...] --returns 1,2 [--bypass] [--mute] [--auto]\n\
   [--delay-ms 0] [--hold-ms 0] [--suppression gentle|balanced|strong] [--seconds 60] [--auto-strips 6,7,8|all --auto-bus 2]\n\
-Default mode: Auto, strip 6 to A2. --aec selects manual AEC.\n\
-Channels, Auto strips (1..8) and Auto A bus (1..5) are numbered from 1.\n\
+Default mode: Auto, the edition's VAIO strip to A2. --aec selects manual AEC.\n\
+Banana has 22 channels, 5 strips and A1..A3; Potato has 34 channels, 8 strips and A1..A5.\n\
 Keys: A=AEC B=bypass M=mute T=auto Q=quit.\n\
 Does not change PATCH settings. Read GUIDE-EN.md before --run."
         );
@@ -101,7 +102,12 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
         }
         return validation::run(profile);
     }
-    if args == ["--probe"] {
+    if args.first().is_some_and(|x| x == "--probe") {
+        let edition = match args.as_slice() {
+            [_] => Edition::Potato,
+            [_, key, value] if key == "--edition" => Edition::parse(value)?,
+            _ => return Err("usage: --probe [--edition banana|potato]".into()),
+        };
         let c = unsafe {
             asio_run(
                 std::ptr::null_mut(),
@@ -114,6 +120,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
                 1,
                 0,
                 1,
+                edition.native_code(),
                 std::ptr::null_mut(),
             )
         };
@@ -126,7 +133,8 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
     let (mut mic, mut reference, mut returns) = (1, None, vec![1, 2]);
     let (mut delay, mut hold, mut seconds, mut mode, mut run, mut auto_bus) =
         (0, 0, 0, 3, false, 2);
-    let mut auto_strips = String::from("6");
+    let mut auto_strips = None;
+    let mut edition = Edition::Potato;
     let mut suppression = ResidualSuppression::Gentle;
     let mut i = 0;
     while i < args.len() {
@@ -137,7 +145,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
             "--auto" => mode = 3,
             "--aec" => mode = 0,
             "--mic" | "--ref" | "--returns" | "--delay-ms" | "--hold-ms" | "--seconds"
-            | "--suppression" | "--auto-strip" | "--auto-strips" | "--auto-bus" => {
+            | "--suppression" | "--auto-strip" | "--auto-strips" | "--auto-bus" | "--edition" => {
                 let key = &args[i];
                 i += 1;
                 let v = args.get(i).ok_or("missing value")?;
@@ -150,9 +158,10 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
                     }
                     "--delay-ms" => delay = parse(v)?,
                     "--hold-ms" => hold = parse(v)?,
-                    "--auto-strip" | "--auto-strips" => auto_strips = v.clone(),
+                    "--auto-strip" | "--auto-strips" => auto_strips = Some(v.clone()),
                     "--auto-bus" => auto_bus = parse(v)?,
                     "--suppression" => suppression = parse_suppression(v)?,
+                    "--edition" => edition = Edition::parse(v)?,
                     _ => seconds = parse(v)?,
                 }
             }
@@ -167,10 +176,14 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
     if std::iter::once(&mic)
         .chain(references.iter().flat_map(|(left, right)| [left, right]))
         .chain(&returns)
-        .any(|x| !(1..=34).contains(x))
+        .any(|x| !(1..=edition.channels()).contains(x))
         || returns.is_empty()
     {
-        return Err("channels must be within 1..34".into());
+        return Err(format!(
+            "{} channels must be within 1..{}",
+            edition.name(),
+            edition.channels()
+        ));
     }
     if references
         .iter()
@@ -185,7 +198,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
     if !(0..=500).contains(&delay)
         || !(0..=250).contains(&hold)
         || seconds < 0
-        || !(1..=5).contains(&auto_bus)
+        || !(1..=edition.buses()).contains(&auto_bus)
     {
         return Err("parameter out of range".into());
     }
@@ -194,7 +207,8 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
         10 + hold
     );
     println!("Residual suppression: {suppression:?} (Standard = Strong / upstream)");
-    let auto_mask = auto_strip_mask(&auto_strips, &returns)?;
+    let auto_strips = auto_strips.unwrap_or_else(|| edition.default_playback_strip().to_string());
+    let auto_mask = auto_strip_mask(&auto_strips, &returns, edition)?;
     println!(
         "Auto strips mask: {auto_mask:#04x} -> A{auto_bus}; route state, not audio-level detection."
     );
@@ -229,6 +243,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
                 0,
                 auto_mask,
                 auto_bus - 1,
+                edition.native_code(),
                 &mut mode,
             )
         };
@@ -272,16 +287,64 @@ fn parse_reference_pairs(value: &str) -> Result<Vec<(i32, i32)>, String> {
     Ok(pairs)
 }
 
-fn auto_strip_mask(value: &str, returns: &[i32]) -> Result<i32, String> {
-    if value == "all" {
-        let mut mask = 255;
-        for c in returns {
-            let strip = match c {
-                1..=10 => (c - 1) / 2,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Edition {
+    Banana,
+    Potato,
+}
+
+impl Edition {
+    fn parse(value: &str) -> Result<Self, String> {
+        match value.to_ascii_lowercase().as_str() {
+            "banana" => Ok(Self::Banana),
+            "potato" => Ok(Self::Potato),
+            _ => Err("edition must be banana or potato".into()),
+        }
+    }
+    fn native_code(self) -> i32 {
+        if self == Self::Banana { 1 } else { 2 }
+    }
+    fn channels(self) -> i32 {
+        if self == Self::Banana { 22 } else { 34 }
+    }
+    fn strips(self) -> i32 {
+        if self == Self::Banana { 5 } else { 8 }
+    }
+    fn buses(self) -> i32 {
+        if self == Self::Banana { 3 } else { 5 }
+    }
+    fn name(self) -> &'static str {
+        if self == Self::Banana {
+            "Banana"
+        } else {
+            "Potato"
+        }
+    }
+    fn default_playback_strip(self) -> i32 {
+        if self == Self::Banana { 4 } else { 6 }
+    }
+    fn channel_strip(self, channel: i32) -> i32 {
+        match self {
+            Self::Banana => match channel {
+                1..=6 => (channel - 1) / 2,
+                7..=14 => 3,
+                _ => 4,
+            },
+            Self::Potato => match channel {
+                1..=10 => (channel - 1) / 2,
                 11..=18 => 5,
                 19..=26 => 6,
                 _ => 7,
-            };
+            },
+        }
+    }
+}
+
+fn auto_strip_mask(value: &str, returns: &[i32], edition: Edition) -> Result<i32, String> {
+    if value == "all" {
+        let mut mask = (1 << edition.strips()) - 1;
+        for c in returns {
+            let strip = edition.channel_strip(*c);
             mask &= !(1 << strip);
         }
         if mask == 0 {
@@ -294,8 +357,12 @@ fn auto_strip_mask(value: &str, returns: &[i32]) -> Result<i32, String> {
         let strip = entry
             .parse::<i32>()
             .map_err(|_| "Auto strips must be a comma-separated list or all")?;
-        if !(1..=8).contains(&strip) {
-            return Err("Auto strips must be within 1..8".into());
+        if !(1..=edition.strips()).contains(&strip) {
+            return Err(format!(
+                "Auto strips must be within 1..{} for {}",
+                edition.strips(),
+                edition.name()
+            ));
         }
         mask |= 1 << (strip - 1);
     }
@@ -332,15 +399,31 @@ mod recovery_tests {
     use super::Recovery;
     #[test]
     fn auto_masks_cover_lists_and_exclude_microphone_return_strips() {
-        assert_eq!(super::auto_strip_mask("6,7,8,6", &[1, 2]).unwrap(), 224);
-        assert_eq!(super::auto_strip_mask("all", &[1, 2]).unwrap(), 254);
+        use super::Edition;
         assert_eq!(
-            super::auto_strip_mask("all", &[11, 12, 19, 34]).unwrap(),
+            super::auto_strip_mask("6,7,8,6", &[1, 2], Edition::Potato).unwrap(),
+            224
+        );
+        assert_eq!(
+            super::auto_strip_mask("all", &[1, 2], Edition::Potato).unwrap(),
+            254
+        );
+        assert_eq!(
+            super::auto_strip_mask("all", &[11, 12, 19, 34], Edition::Potato).unwrap(),
             31
         );
         for invalid in ["", "0", "9", "6,", "6.5", "-1"] {
-            assert!(super::auto_strip_mask(invalid, &[1, 2]).is_err());
+            assert!(super::auto_strip_mask(invalid, &[1, 2], Edition::Potato).is_err());
         }
+        assert_eq!(
+            super::auto_strip_mask("all", &[1, 2], Edition::Banana).unwrap(),
+            30
+        );
+        assert_eq!(
+            super::auto_strip_mask("4,5", &[1, 2], Edition::Banana).unwrap(),
+            24
+        );
+        assert!(super::auto_strip_mask("6", &[1, 2], Edition::Banana).is_err());
     }
     #[test]
     fn reference_parser_accepts_multiple_stereo_pairs() {

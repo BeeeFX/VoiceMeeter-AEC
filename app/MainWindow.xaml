@@ -52,7 +52,7 @@
             <ComboBoxItem Content="English" Tag="en" />
             <ComboBoxItem Content="Français" Tag="fr" />
           </ComboBox>
-          <TextBlock Text="Independent project · Potato · 48 kHz" Foreground="{DynamicResource SubtleInk}" FontSize="10" Margin="0,16,0,0" />
+          <TextBlock x:Name="EditionFooter" Text="Independent project · Banana / Potato · 48 kHz" Foreground="{DynamicResource SubtleInk}" FontSize="10" Margin="0,16,0,0" />
         </StackPanel>
       </Grid>
     </Border>
@@ -83,6 +83,20 @@
       <Grid Grid.Row="1">
         <ScrollViewer x:Name="SetupView" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="30,24,22,24">
           <StackPanel>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="240" /></Grid.ColumnDefinitions>
+                <StackPanel Margin="0,0,18,0">
+                  <TextBlock x:Name="EditionLabel" Text="VoiceMeeter edition" FontWeight="SemiBold" FontSize="15" />
+                  <TextBlock x:Name="EditionHelp" Text="Auto follows the running app. Choose manually to set up while VoiceMeeter is closed." Foreground="{DynamicResource MutedInk}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+                <ComboBox x:Name="EditionBox" Grid.Column="1" VerticalAlignment="Center" SelectedIndex="0" SelectionChanged="EditionBox_SelectionChanged">
+                  <ComboBoxItem Content="Auto (Potato detected)" Tag="auto" />
+                  <ComboBoxItem Content="Banana" Tag="banana" />
+                  <ComboBoxItem Content="Potato" Tag="potato" />
+                </ComboBox>
+              </Grid>
+            </Border>
             <Border Style="{StaticResource Card}" Margin="0,0,0,16">
               <StackPanel>
                 <TextBlock x:Name="MicHeading" Text="1  Where is your microphone?" FontWeight="SemiBold" FontSize="16" />
@@ -178,11 +192,17 @@
                 <TextBlock x:Name="PatchWhereText" Text="Your microphone is IN1 — enable the two highlighted boxes (Left and Right)." Foreground="{DynamicResource AccentText}" FontWeight="SemiBold" Margin="0,0,0,8" />
                 <Border Background="#0C202D" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" CornerRadius="9" Padding="8" HorizontalAlignment="Left" Margin="0,0,0,12">
                   <Canvas Width="534" Height="157" ClipToBounds="True">
-                    <Image Source="Assets/voicemeeter-patch-insert.png" Width="534" Height="157" Stretch="None" />
+                    <Image x:Name="PatchScreenshot" Source="Assets/voicemeeter-patch-insert.png" Width="534" Height="157" Stretch="None" />
+                    <Border x:Name="BananaPatchHeader" Canvas.Left="0" Canvas.Top="0" Width="534" Height="40" Background="#102936" Visibility="Collapsed">
+                      <StackPanel Orientation="Horizontal" Margin="7,7,0,0">
+                        <Border BorderBrush="#567889" BorderThickness="1" CornerRadius="4" Height="24" Padding="8,2"><TextBlock Text="PATCH INSERT" Foreground="#74A9C1" FontSize="12" /></Border>
+                        <TextBlock Text="Activate Insert per PRE-Fader Inputs (22 channels virtual ASIO Driver)" Foreground="#E1F0F5" Margin="8,3,0,0" FontSize="11" />
+                      </StackPanel>
+                    </Border>
                     <!-- The supplied screenshot has IN1 enabled. Neutralize it so the selected strip can be highlighted dynamically. -->
-                    <Border Canvas.Left="22" Canvas.Top="97" Width="42" Height="36" Background="#102936" />
-                    <Border Canvas.Left="25" Canvas.Top="101" Width="12" Height="29" BorderBrush="#718793" BorderThickness="1" />
-                    <Border Canvas.Left="49" Canvas.Top="101" Width="12" Height="29" BorderBrush="#718793" BorderThickness="1" />
+                    <Border x:Name="PatchNeutralizer" Canvas.Left="22" Canvas.Top="97" Width="42" Height="36" Background="#102936" />
+                    <Border x:Name="PatchNeutralLeft" Canvas.Left="25" Canvas.Top="101" Width="12" Height="29" BorderBrush="#718793" BorderThickness="1" />
+                    <Border x:Name="PatchNeutralRight" Canvas.Left="49" Canvas.Top="101" Width="12" Height="29" BorderBrush="#718793" BorderThickness="1" />
                     <Border x:Name="PatchLeftBox" Canvas.Left="25" Canvas.Top="101" Width="12" Height="29" Background="{DynamicResource Accent}" BorderBrush="{DynamicResource AccentHover}" BorderThickness="1">
                       <TextBlock Text="✓" Foreground="{DynamicResource PrimaryText}" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>

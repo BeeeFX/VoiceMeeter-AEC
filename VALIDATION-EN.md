@@ -7,11 +7,11 @@ The automated checks pass for Gentle and Balanced. **Strong deliberately exposes
 ## Automated evidence
 
 - Seven Rust tests cover exact bypass framing across varying callback sizes, bounded hold, missing reference/mute/non-finite input, fades, selective driver recovery, multi-reference parsing, and multi-strip Auto masks including microphone-return exclusions.
-- Native transport tests cover 34 channels, double buffers, PCM16/24/32 and float32, preserving unselected channels bit-for-bit.
+- Native transport tests cover Banana's 22 channels and Potato's 34 channels, double buffers, PCM16/24/32 and float32, preserving unselected channels bit-for-bit.
 - The real C++ callback calls the Rust engine through FFI for 300 simulated blocks; framing, immediate mute, channel preservation and invalid-index detection pass.
 - Native event checks cover reset, sample-rate change, latency-only notification, cancellation priority and aggregation of active/inactive/unknown Auto routes.
 - A hidden child process receives M/B/A/T/Q through the same anonymous stdin pipe used by the tray. It verifies the actual native control handling, returns diagnostic output and exits gracefully without opening an audio device.
-- English/French desktop checks cover Auto as the default, language changes preserving selected mode/profile, settings round trips, isolated Windows startup registration, close-to-tray/restore behavior, update metadata and version parsing, checksum parsing, and rejection of unsafe archive paths.
+- English/French desktop checks cover both mixer layouts and channel maps, automatic/manual edition selection, Auto as the default, language changes preserving selected mode/profile, settings round trips, isolated Windows startup registration, close-to-tray/restore behavior, update metadata and version parsing, checksum parsing, and rejection of unsafe archive paths.
 - Release builds remap local compiler paths; public archives are checked for developer account paths, saved settings, shortcuts, logs and build directories.
 
 ## Audio measurements
@@ -42,8 +42,8 @@ Sign-in startup waits for VoiceMeeter and retries selected initial driver failur
 
 Initial live use of the previous release was reported as working, including microphone mute, with audible residual speaker sound. This is informal user feedback, not a controlled acoustic measurement.
 
-No live audio stream, sign-out or reboot was performed for this update. Real sign-in ordering, hidden-host driver initialization, long-duration streaming, actual driver recovery, multiple-route Auto transitions, speech quality, perceptual preset comparisons and end-to-end latency still need field validation. Automated checks exercise the control and processing paths without taking over active audio.
+No Banana live audio stream, sign-out or reboot was performed for this update. The Banana driver registration and 22-channel software path are covered, but a Banana user should still confirm real streaming, route reads and PATCH INSERT behavior. Real sign-in ordering, hidden-host driver initialization, long-duration streaming, actual driver recovery, multiple-route Auto transitions, speech quality, perceptual preset comparisons and end-to-end latency still need field validation. Automated checks exercise the control and processing paths without taking over active audio.
 
 Host arrays have fixed capacity and there are no host allocations, logging or Remote calls in the audio callback. Sonora's internal allocation behavior is not instrumented. Its upstream dev-test suite was not run because dev dependencies are outside the vendored application graph; the patch is covered by the application's integration and quality scenarios.
 
-Compatibility target: Windows x64, VoiceMeeter Potato with its Insert x64 driver, 48 kHz, and the Visual C++ x64 runtime. The desktop app is published self-contained, so users do not need to install .NET or run PowerShell. The binaries are unsigned. No other VoiceMeeter edition is claimed supported.
+Compatibility target: Windows x64, VoiceMeeter Banana or Potato with its matching Insert x64 driver, 48 kHz, and the Visual C++ x64 runtime. The desktop app is published self-contained, so users do not need to install .NET or run PowerShell. The binaries are unsigned. Standard VoiceMeeter is not supported because it does not provide the required Insert layout.

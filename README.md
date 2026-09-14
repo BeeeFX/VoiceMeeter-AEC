@@ -6,12 +6,12 @@
   <a href="https://github.com/BeeeFX/VoiceMeeter-AEC/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/BeeeFX/VoiceMeeter-AEC?style=flat-square&color=20C5C7"></a>
   <a href="https://github.com/BeeeFX/VoiceMeeter-AEC/releases"><img alt="Total downloads" src="https://img.shields.io/github/downloads/BeeeFX/VoiceMeeter-AEC/total?style=flat-square&logo=github&color=20C5C7"></a>
   <img alt="Windows x64" src="https://img.shields.io/badge/Windows-x64-1674EA?style=flat-square&logo=windows11&logoColor=white">
-  <img alt="VoiceMeeter Potato" src="https://img.shields.io/badge/VoiceMeeter-Potato-0B7F87?style=flat-square">
+  <img alt="VoiceMeeter Banana and Potato" src="https://img.shields.io/badge/VoiceMeeter-Banana%20%2B%20Potato-0B7F87?style=flat-square">
   <img alt="GPL v3" src="https://img.shields.io/badge/license-GPL--3.0-E85D5D?style=flat-square">
 </p>
 
 <p align="center">
-  <a href="https://github.com/BeeeFX/VoiceMeeter-AEC/releases/latest/download/VoiceMeeter-AEC-1.0.0-Windows-x64.zip"><img alt="Download for Windows" src="https://img.shields.io/badge/Download-Windows-20C5C7?style=for-the-badge&logo=windows11&logoColor=white&labelColor=0D1925"></a>
+  <a href="https://github.com/BeeeFX/VoiceMeeter-AEC/releases/latest"><img alt="Download for Windows" src="https://img.shields.io/badge/Download-Windows-20C5C7?style=for-the-badge&logo=windows11&logoColor=white&labelColor=0D1925"></a>
 </p>
 
 <p align="center">
@@ -23,9 +23,11 @@ VoiceMeeter AEC lets you use speakers without sending the room echo back into ca
 
 ![VoiceMeeter AEC setup screen](docs/images/app-setup.png)
 
-Under the hood, the app connects to **Voicemeeter Potato Insert Virtual ASIO**, processes the microphone with Sonora/WebRTC AEC3, and returns the cleaned signal to the same VoiceMeeter strip.
+<p align="center"><sub>Potato shown above. Banana is detected automatically and uses its smaller mixer layout.</sub></p>
 
-The audio engine remains focused and low-level. The desktop app turns its channel numbers into the VoiceMeeter columns you already recognize: **IN1–IN5, VAIO, AUX, and VAIO3**. When VoiceMeeter is open, your own strip labels appear on the cards as well. Dark mode is the default, with a saved light-mode option.
+Under the hood, the app connects to the matching **VoiceMeeter Banana or Potato Insert Virtual ASIO** driver, processes the microphone with Sonora/WebRTC AEC3, and returns the cleaned signal to the same VoiceMeeter strip.
+
+The app detects the running VoiceMeeter edition and shows only its real mixer layout. Banana users see **IN1–IN3, VAIO, AUX and A1–A3**; Potato users see **IN1–IN5, VAIO, AUX, VAIO3 and A1–A5**. You can override detection before starting the engine. When VoiceMeeter is open, your own strip labels appear on the cards as well.
 
 ## Get started
 
@@ -36,9 +38,11 @@ The audio engine remains focused and low-level. The desktop app turns its channe
 
 Your normal controls remain available from the window and the system tray: **Auto, AEC on, Bypass, and Mute**. Settings save automatically. Optional Windows startup, tuning controls, and updates are under **Advanced**. The app checks the latest stable GitHub release at most once a day and asks before installing anything.
 
-| Guided first run | Clean advanced controls |
+| Banana layout | Integrated setup guide |
 |:---:|:---:|
-| ![Integrated setup guide](docs/images/app-guide.png) | ![Advanced settings](docs/images/app-advanced.png) |
+| ![Banana setup](docs/images/app-setup-banana.png) | ![Integrated setup guide](docs/images/app-guide.png) |
+
+![Advanced settings](docs/images/app-advanced.png)
 
 > Before stopping the audio engine or removing the app, disable the microphone’s PATCH INSERT returns. If setup ever leaves the microphone silent, disabling those two returns immediately restores VoiceMeeter’s direct signal path.
 
@@ -52,11 +56,11 @@ The app intentionally reads VoiceMeeter routing without changing it. This protec
 
 | | Support |
 |---|---|
-| VoiceMeeter | Potato |
+| VoiceMeeter | Banana and Potato; detected automatically with a manual override |
 | Platform | Windows x64 |
 | Sample rate | 48 kHz |
-| Microphone source | IN1–IN5, left or right |
-| Playback reference | One or more Potato strips; VAIO, AUX, and VAIO3 are common choices |
+| Microphone source | Banana IN1–IN3 or Potato IN1–IN5, left or right |
+| Playback reference | One or more strips; VAIO and AUX are common choices, plus VAIO3 on Potato |
 | AEC modes | Auto, always on, bypass, mute |
 | Suppression | Gentle, Balanced, Strong |
 | Startup | Optional per-user Windows sign-in startup |

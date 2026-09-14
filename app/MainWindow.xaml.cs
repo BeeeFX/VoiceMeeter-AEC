@@ -42,10 +42,8 @@ public partial class MainWindow : Window
     private int _updateProgress;
     private bool _updateBusy;
     private string UiLanguage => _settings.Language;
-
-    private static readonly string[] StripNames = ["IN1", "IN2", "IN3", "IN4", "IN5", "VAIO", "AUX", "VAIO3"];
-    private static readonly int[] StripStarts = [1, 3, 5, 7, 9, 11, 19, 27];
-    private string?[] _stripLabels = new string?[8];
+    private MixerLayout _layout;
+    private string?[] _stripLabels;
 
     private static readonly Dictionary<string, string> French = new()
     {
@@ -53,6 +51,10 @@ public partial class MainWindow : Window
         ["Setup guide"] = "Guide de configuration",
         ["Advanced"] = "Avancé",
         ["Diagnostics"] = "Diagnostic",
+        ["VoiceMeeter edition"] = "Édition de VoiceMeeter",
+        ["Auto follows the running app. Choose manually to set up while VoiceMeeter is closed."] = "Auto suit l’application ouverte. Choisissez manuellement pour configurer VoiceMeeter lorsqu’il est fermé.",
+        ["Auto ({0} detected)"] = "Auto ({0} détecté)",
+        ["Auto (waiting for VoiceMeeter)"] = "Auto (en attente de VoiceMeeter)",
         ["Match the columns already visible in VoiceMeeter."] = "Retrouvez les colonnes déjà visibles dans VoiceMeeter.",
         ["Follow the four steps once, then use Setup day to day."] = "Suivez ces quatre étapes une fois, puis utilisez Configuration au quotidien.",
         ["Fine-tune behaviour after the basic setup works."] = "Ajustez les options après avoir validé la configuration de base.",
@@ -72,7 +74,7 @@ public partial class MainWindow : Window
         ["Speaker audio"] = "Son des enceintes",
         ["Clean mic"] = "Micro nettoyé",
         ["1  Prepare VoiceMeeter"] = "1  Préparez VoiceMeeter",
-        ["Open VoiceMeeter Potato and confirm the sample rate is 48 kHz. Keep PATCH INSERT off while choosing settings."] = "Ouvrez VoiceMeeter Potato et vérifiez que la fréquence est de 48 kHz. Laissez PATCH INSERT désactivé pendant les réglages.",
+        ["Open VoiceMeeter {0} and confirm the sample rate is 48 kHz. Keep PATCH INSERT off while choosing settings."] = "Ouvrez VoiceMeeter {0} et vérifiez que la fréquence est de 48 kHz. Laissez PATCH INSERT désactivé pendant les réglages.",
         ["2  Match the three columns"] = "2  Associez les trois colonnes",
         ["Playback columns provide the audio reference AEC removes from your mic. The A bus is only the route Auto watches to decide when AEC should be active."] = "Les colonnes de lecture fournissent la référence audio que l’AEC retire du micro. Le bus A sert uniquement de route surveillée par Auto pour décider quand activer l’AEC.",
         ["Reference rule: include all speaker audio and exclude your microphone."] = "Règle de référence : incluez tout le son des enceintes et excluez votre microphone.",
@@ -145,7 +147,7 @@ public partial class MainWindow : Window
         ["Hardware input"] = "Entrée matérielle",
         ["Virtual input"] = "Entrée virtuelle",
         ["channels"] = "canaux",
-        ["Please start VoiceMeeter Potato first, then try again."] = "Démarrez d’abord VoiceMeeter Potato, puis réessayez.",
+        ["Please start VoiceMeeter {0} first, then try again."] = "Démarrez d’abord VoiceMeeter {0}, puis réessayez.",
         ["The audio engine stopped. Open Diagnostics for details."] = "Le moteur audio s’est arrêté. Ouvrez Diagnostic pour plus de détails.",
         ["Before stopping, disable the microphone’s PATCH INSERT return in VoiceMeeter. Continue?"] = "Avant l’arrêt, désactivez le retour PATCH INSERT du microphone dans VoiceMeeter. Continuer ?",
         ["The engine did not stop yet. Open Diagnostics and try again."] = "Le moteur ne s’est pas encore arrêté. Ouvrez Diagnostic et réessayez.",
@@ -188,6 +190,11 @@ public partial class MainWindow : Window
         _settings = _arguments.Contains("--preview") || _arguments.Contains("--check-ui")
             ? new AppSettings()
             : AppSettings.Load();
+        if (_arguments.Contains("--banana")) _settings.VoiceMeeterEdition = "banana";
+        if (_arguments.Contains("--potato")) _settings.VoiceMeeterEdition = "potato";
+        _layout = MixerLayout.Resolve(_settings.VoiceMeeterEdition);
+        _settings.NormalizeFor(_layout);
+        _stripLabels = new string?[_layout.StripCount];
         if (_arguments.Contains("--dark")) _settings.Theme = "dark";
         if (_arguments.Contains("--light")) _settings.Theme = "light";
         InitializeComponent();
@@ -239,7 +246,7 @@ public partial class MainWindow : Window
     {
         _micButtons.Clear();
         MicStripPanel.Children.Clear();
-        for (var strip = 1; strip <= 5; strip++)
+        for (var strip = 1; strip <= _layout.HardwareStrips; strip++)
         {
             var button = CreateStripCard(strip, "mic");
             _micButtons.Add(strip, button);
@@ -248,7 +255,7 @@ public partial class MainWindow : Window
 
         _referenceButtons.Clear();
         ReferenceStripPanel.Children.Clear();
-        for (var strip = 1; strip <= 8; strip++)
+        for (var strip = 1; strip <= _layout.StripCount; strip++)
         {
             var button = CreateReferenceCard(strip);
             _referenceButtons.Add(strip, button);
@@ -257,7 +264,7 @@ public partial class MainWindow : Window
 
         _busButtons.Clear();
         BusPanel.Children.Clear();
-        for (var bus = 1; bus <= 5; bus++)
+        for (var bus = 1; bus <= _layout.BusCount; bus++)
         {
             var button = new RadioButton
             {
@@ -273,13 +280,13 @@ public partial class MainWindow : Window
 
         _autoButtons.Clear();
         AutoStripPanel.Children.Clear();
-        for (var strip = 1; strip <= 8; strip++)
+        for (var strip = 1; strip <= _layout.StripCount; strip++)
         {
             var button = new CheckBox
             {
-                Content = StripNames[strip - 1],
+                Content = _layout.StripNames[strip - 1],
                 Tag = strip,
-                ToolTip = $"{T(strip <= 5 ? "Hardware input" : "Virtual input")} · {T("channels")} {StripStarts[strip - 1]},{StripStarts[strip - 1] + 1}",
+                ToolTip = $"{T(strip <= _layout.HardwareStrips ? "Hardware input" : "Virtual input")} · {T("channels")} {_layout.StripStarts[strip - 1]},{_layout.StripStarts[strip - 1] + 1}",
                 Style = (Style)FindResource("PillCheck")
             };
             button.Checked += SelectorChanged;
@@ -317,10 +324,10 @@ public partial class MainWindow : Window
 
     private StackPanel CreateStripContent(int strip)
     {
-        var start = StripStarts[strip - 1];
-        var type = strip <= 5 ? T("Hardware input") : T("Virtual input");
+        var start = _layout.StripStarts[strip - 1];
+        var type = strip <= _layout.HardwareStrips ? T("Hardware input") : T("Virtual input");
         var content = new StackPanel();
-        var name = new TextBlock { Text = StripNames[strip - 1], FontSize = 16, FontWeight = FontWeights.SemiBold };
+        var name = new TextBlock { Text = _layout.StripNames[strip - 1], FontSize = 16, FontWeight = FontWeights.SemiBold };
         name.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
         var label = new TextBlock { Text = _stripLabels[strip - 1] ?? type, Margin = new Thickness(0, 3, 0, 0), FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = _stripLabels[strip - 1] };
         label.SetResourceReference(TextBlock.ForegroundProperty, "MutedInk");
@@ -347,6 +354,7 @@ public partial class MainWindow : Window
         SelectComboByTag(SuppressionBox, _settings.Suppression);
         SelectComboByTag(StartModeBox, _settings.StartMode);
         LanguageBox.SelectedIndex = _settings.Language == "fr" ? 1 : 0;
+        SelectComboByTag(EditionBox, _settings.VoiceMeeterEdition);
         UpdateReferenceAvailability(_settings.MicrophoneStrip);
         UpdatePatchDiagram(_settings.MicrophoneStrip);
         UpdateAutoControls();
@@ -362,7 +370,7 @@ public partial class MainWindow : Window
     {
         _settings.MicrophoneStrip = SelectedKey(_micButtons, 1);
         _settings.ReferenceStrips = SelectedKeys(_referenceButtons);
-        if (_settings.ReferenceStrips.Count == 0) _settings.ReferenceStrips.Add(6);
+        if (_settings.ReferenceStrips.Count == 0) _settings.ReferenceStrips.Add(_layout.DefaultPlaybackStrip);
         _settings.SpeakerBus = SelectedKey(_busButtons, 2);
         _settings.AutoStrips = _autoButtons.Where(pair => pair.Value.IsChecked == true).Select(pair => pair.Key).ToList();
         if (_settings.AutoStrips.Count == 0) _settings.AutoStrips.AddRange(_settings.ReferenceStrips);
@@ -374,6 +382,7 @@ public partial class MainWindow : Window
         _settings.DelayMs = (int)Math.Round(DelaySlider.Value);
         _settings.StartWithWindows = StartupBox.IsChecked == true;
         _settings.CheckForUpdatesAutomatically = AutomaticUpdatesBox.IsChecked == true;
+        _settings.VoiceMeeterEdition = SelectedTag(EditionBox, "auto");
     }
 
     private static int SelectedKey(Dictionary<int, RadioButton> buttons, int fallback) =>
@@ -416,10 +425,10 @@ public partial class MainWindow : Window
         {
             if (_referenceButtons[micStrip].IsChecked == true)
             {
-                _referenceButtons[6].IsChecked = true;
+                _referenceButtons[_layout.DefaultPlaybackStrip].IsChecked = true;
                 _referenceButtons[micStrip].IsChecked = false;
             }
-            if (!SelectedKeys(_referenceButtons).Any()) _referenceButtons[6].IsChecked = true;
+            if (!SelectedKeys(_referenceButtons).Any()) _referenceButtons[_layout.DefaultPlaybackStrip].IsChecked = true;
             UpdateReferenceAvailability(micStrip);
             UpdatePatchDiagram(micStrip);
         }
@@ -464,10 +473,44 @@ public partial class MainWindow : Window
 
     private void UpdatePatchDiagram(int microphoneStrip)
     {
-        var left = 25d + (Math.Clamp(microphoneStrip, 1, 5) - 1) * 48d;
+        var banana = _layout == MixerLayout.Banana;
+        var left = banana
+            ? 20d + (Math.Clamp(microphoneStrip, 1, _layout.HardwareStrips) - 1) * 46d
+            : 25d + (Math.Clamp(microphoneStrip, 1, _layout.HardwareStrips) - 1) * 48d;
         Canvas.SetLeft(PatchLeftBox, left);
-        Canvas.SetLeft(PatchRightBox, left + 24d);
+        Canvas.SetLeft(PatchRightBox, left + (banana ? 23d : 24d));
+        BananaPatchHeader.Visibility = banana ? Visibility.Visible : Visibility.Collapsed;
+        PatchNeutralizer.Visibility = banana ? Visibility.Collapsed : Visibility.Visible;
+        PatchNeutralLeft.Visibility = banana ? Visibility.Collapsed : Visibility.Visible;
+        PatchNeutralRight.Visibility = banana ? Visibility.Collapsed : Visibility.Visible;
+        PatchScreenshot.Source = new BitmapImage(new Uri(
+            banana ? "pack://application:,,,/Assets/voicemeeter-banana-patch-insert.png" : "pack://application:,,,/Assets/voicemeeter-patch-insert.png"));
         PatchWhereText.Text = string.Format(T("Your microphone is {0} — enable the two highlighted boxes (Left and Right)."), $"IN{microphoneStrip}");
+    }
+
+    private void EditionBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready) return;
+        SyncSettingsFromControls();
+        _settings.VoiceMeeterEdition = SelectedTag(EditionBox, "auto");
+        ChangeLayout(MixerLayout.Resolve(_settings.VoiceMeeterEdition));
+        ApplyLanguage();
+        QueueSave();
+    }
+
+    private void ChangeLayout(MixerLayout layout)
+    {
+        var wasReady = _ready;
+        _ready = false;
+        try
+        {
+            _layout = layout;
+            _settings.NormalizeFor(layout);
+            _stripLabels = new string?[layout.StripCount];
+            BuildSelectors();
+            ApplySettingsToControls();
+        }
+        finally { _ready = wasReady; }
     }
 
     private void LanguageBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -496,6 +539,9 @@ public partial class MainWindow : Window
         DiagnosticsNavText.Text = T("Diagnostics");
         GuideNavText.Text = T("Setup guide");
         LanguageLabel.Text = T("Language");
+        EditionLabel.Text = T("VoiceMeeter edition");
+        EditionHelp.Text = T("Auto follows the running app. Choose manually to set up while VoiceMeeter is closed.");
+        EditionFooter.Text = $"Independent project · {_layout.DisplayName} · 48 kHz";
         ApplyTheme();
         var page = SetupView.Visibility == Visibility.Visible ? "setup" : GuideView.Visibility == Visibility.Visible ? "guide" : AdvancedView.Visibility == Visibility.Visible ? "advanced" : "diagnostics";
         ShowPage(page);
@@ -513,7 +559,7 @@ public partial class MainWindow : Window
         FlowPlayback.Text = T("Speaker audio");
         FlowCleanMic.Text = T("Clean mic");
         GuideStep1Heading.Text = T("1  Prepare VoiceMeeter");
-        GuideStep1Text.Text = T("Open VoiceMeeter Potato and confirm the sample rate is 48 kHz. Keep PATCH INSERT off while choosing settings.");
+        GuideStep1Text.Text = string.Format(T("Open VoiceMeeter {0} and confirm the sample rate is 48 kHz. Keep PATCH INSERT off while choosing settings."), _layout.DisplayName);
         GuideStep2Heading.Text = T("2  Match the three columns");
         GuideStep2Text.Text = T("Playback columns provide the audio reference AEC removes from your mic. The A bus is only the route Auto watches to decide when AEC should be active.");
         GuideReferenceRule.Text = T("Reference rule: include all speaker audio and exclude your microphone.");
@@ -562,6 +608,11 @@ public partial class MainWindow : Window
         var modes = new Dictionary<string, string> { ["bypass"] = "Bypass", ["aec"] = T("AEC always on"), ["auto"] = T("Auto (recommended)"), ["mute"] = T("Mute microphone") };
         foreach (ComboBoxItem item in StartModeBox.Items) item.Content = modes[item.Tag!.ToString()!];
         foreach (ComboBoxItem item in MicSideBox.Items) item.Content = T(item.Tag!.ToString() == "left" ? "Left" : "Right");
+        var runningEdition = MixerLayout.DetectRunning();
+        foreach (ComboBoxItem item in EditionBox.Items)
+            item.Content = item.Tag?.ToString() == "auto"
+                ? runningEdition is null ? T("Auto (waiting for VoiceMeeter)") : string.Format(T("Auto ({0} detected)"), runningEdition.DisplayName)
+                : item.Tag?.ToString() == "banana" ? "Banana" : "Potato";
     }
 
     private void ConfigureEngineEvents()
@@ -579,6 +630,7 @@ public partial class MainWindow : Window
         _engine.Exited += code => Dispatcher.Invoke(() =>
         {
             EngineButton.Content = T("Start echo cancellation");
+            SetModeButtons(false);
             SetModeButtons(false);
             if (_startupPending && !_engine.EverRunning && code is 13 or 14 or 20 or 35 && DateTime.Now < _startupDeadline)
                 return;
@@ -693,7 +745,9 @@ public partial class MainWindow : Window
 
     private void LoadVoiceMeeterLabels()
     {
-        var labels = VoiceMeeterLabels.TryRead();
+        if (_settings.VoiceMeeterEdition == "auto" && MixerLayout.DetectRunning() is { } detected && detected != _layout)
+            ChangeLayout(detected);
+        var labels = VoiceMeeterLabels.TryRead(_layout);
         if (labels.All(string.IsNullOrWhiteSpace)) return;
         var mic = SelectedKey(_micButtons, 1);
         var references = SelectedKeys(_referenceButtons);
@@ -721,10 +775,11 @@ public partial class MainWindow : Window
     private void ValidateUiMappings()
     {
         UpdateService.RunSelfTests();
+        ChangeLayout(MixerLayout.Potato);
         if (_micButtons.Count != 5 || _referenceButtons.Count != 8 || _busButtons.Count != 5 || _autoButtons.Count != 8)
-            throw new InvalidOperationException("The mixer selectors were not created correctly.");
-        if (StripStarts[5] != 11 || StripStarts[6] != 19 || StripStarts[7] != 27)
-            throw new InvalidOperationException("Virtual input channel mapping is invalid.");
+            throw new InvalidOperationException("The Potato selectors were not created correctly.");
+        if (_layout.StripStarts[5] != 11 || _layout.StripStarts[6] != 19 || _layout.StripStarts[7] != 27)
+            throw new InvalidOperationException("The Potato virtual input mapping is invalid.");
         _micButtons[3].IsChecked = true;
         if (Math.Abs(Canvas.GetLeft(PatchLeftBox) - 121d) > 0.1 || Math.Abs(Canvas.GetLeft(PatchRightBox) - 145d) > 0.1)
             throw new InvalidOperationException("The PATCH INSERT highlight did not follow the microphone strip.");
@@ -735,8 +790,25 @@ public partial class MainWindow : Window
         SelectComboByTag(MicSideBox, "right");
         var arguments = BuildEngineArguments();
         var joined = string.Join(' ', arguments);
-        if (!joined.Contains("--mic 6") || !joined.Contains("--ref 11,12,19,20") || !joined.Contains("--returns 5,6") || !joined.Contains("--auto-bus 4"))
-            throw new InvalidOperationException("A visible strip selection produced incorrect engine channels.");
+        if (!joined.Contains("--edition potato") || !joined.Contains("--mic 6") || !joined.Contains("--ref 11,12,19,20") || !joined.Contains("--returns 5,6") || !joined.Contains("--auto-bus 4"))
+            throw new InvalidOperationException("A Potato selection produced incorrect engine channels.");
+
+        ChangeLayout(MixerLayout.Banana);
+        if (_micButtons.Count != 3 || _referenceButtons.Count != 5 || _busButtons.Count != 3 || _autoButtons.Count != 5)
+            throw new InvalidOperationException("The Banana selectors were not created correctly.");
+        if (!_layout.StripStarts.SequenceEqual([1, 3, 5, 7, 15]))
+            throw new InvalidOperationException("The Banana virtual input mapping is invalid.");
+        _micButtons[3].IsChecked = true;
+        if (Math.Abs(Canvas.GetLeft(PatchLeftBox) - 112d) > 0.1 || Math.Abs(Canvas.GetLeft(PatchRightBox) - 135d) > 0.1)
+            throw new InvalidOperationException("The Banana PATCH INSERT highlight did not follow the microphone strip.");
+        _referenceButtons[4].IsChecked = true;
+        _referenceButtons[5].IsChecked = true;
+        foreach (var pair in _referenceButtons.Where(pair => pair.Key is not (4 or 5))) pair.Value.IsChecked = false;
+        _busButtons[3].IsChecked = true;
+        SelectComboByTag(MicSideBox, "right");
+        joined = string.Join(' ', BuildEngineArguments());
+        if (!joined.Contains("--edition banana") || !joined.Contains("--mic 6") || !joined.Contains("--ref 7,8,15,16") || !joined.Contains("--returns 5,6") || !joined.Contains("--auto-bus 3"))
+            throw new InvalidOperationException("A Banana selection produced incorrect engine channels.");
         var migrated = AppSettings.Parse("""{"schema":1,"language":"fr","mic":2,"refL":19,"strips":"6,7,8","autoScope":0,"bus":3,"mode":2,"suppression":"balanced","hold":7,"delay":9}""", true);
         if (!migrated.MigratedFromLegacy || migrated.Language != "fr" || migrated.MicrophoneStrip != 1 || migrated.MicrophoneSide != "right" || migrated.ReferenceStrip != 7 || migrated.SpeakerBus != 3 || migrated.StartMode != "auto" || migrated.Suppression != "balanced" || !migrated.StartWithWindows)
             throw new InvalidOperationException("Legacy launcher settings were not migrated correctly.");
@@ -745,9 +817,12 @@ public partial class MainWindow : Window
         var upgraded = AppSettings.Parse("""{"Schema":2,"ReferenceStrip":7}""", false);
         var multiple = AppSettings.Parse("""{"Schema":2,"ReferenceStrips":[6,7]}""", false);
         var updatesDisabled = AppSettings.Parse("""{"Schema":2,"CheckForUpdatesAutomatically":false}""", false);
+        var bananaSettings = AppSettings.Parse("""{"Schema":3,"VoiceMeeterEdition":"banana"}""", false);
         if (!upgraded.ReferenceStrips.SequenceEqual([7]) || !multiple.ReferenceStrips.SequenceEqual([6, 7]) ||
-            !upgraded.CheckForUpdatesAutomatically || updatesDisabled.CheckForUpdatesAutomatically)
+            !upgraded.CheckForUpdatesAutomatically || updatesDisabled.CheckForUpdatesAutomatically ||
+            upgraded.VoiceMeeterEdition != "auto" || bananaSettings.VoiceMeeterEdition != "banana")
             throw new InvalidOperationException("Saved settings migration is invalid.");
+        ChangeLayout(MixerLayout.Potato);
         foreach (var language in new[] { "en", "fr" })
         {
             _settings.Language = language;
@@ -927,25 +1002,27 @@ public partial class MainWindow : Window
             _startupPending = false;
             _startupTimer?.Stop();
             UpdateStatusVisual("stopped");
-            _tray?.ShowBalloonTip(5000, "VoiceMeeter AEC", T("Please start VoiceMeeter Potato first, then try again."), WinForms.ToolTipIcon.Warning);
+            _tray?.ShowBalloonTip(5000, "VoiceMeeter AEC", string.Format(T("Please start VoiceMeeter {0} first, then try again."), _settings.VoiceMeeterEdition == "auto" ? "Banana or Potato" : _layout.DisplayName), WinForms.ToolTipIcon.Warning);
             return;
         }
         if (_engine.Alive) return;
-        if (Process.GetProcessesByName("voicemeeter8").Length == 0) return;
+        var running = _settings.VoiceMeeterEdition == "auto" ? MixerLayout.DetectRunning() : MixerLayout.IsRunning(_layout) ? _layout : null;
+        if (running is null) return;
+        if (running != _layout) ChangeLayout(running);
         StartEngine(true);
     }
 
     private List<string> BuildEngineArguments()
     {
         SyncSettingsFromControls();
-        var start = StripStarts[_settings.MicrophoneStrip - 1];
+        var start = _layout.StripStarts[_settings.MicrophoneStrip - 1];
         var mic = start + (_settings.MicrophoneSide == "right" ? 1 : 0);
         var references = _settings.ReferenceStrips
-            .SelectMany(strip => new[] { StripStarts[strip - 1], StripStarts[strip - 1] + 1 })
+            .SelectMany(strip => new[] { _layout.StripStarts[strip - 1], _layout.StripStarts[strip - 1] + 1 })
             .ToList();
         var result = new List<string>
         {
-            "--run", "--mic", mic.ToString(), "--ref", string.Join(',', references),
+            "--run", "--edition", _layout.Key, "--mic", mic.ToString(), "--ref", string.Join(',', references),
             "--returns", $"{start},{start + 1}", "--hold-ms", _settings.HoldMs.ToString(),
             "--delay-ms", _settings.DelayMs.ToString(), "--auto-strips",
             _settings.WatchAllStrips ? "all" : string.Join(',', _settings.AutoStrips),
@@ -959,6 +1036,8 @@ public partial class MainWindow : Window
     {
         try
         {
+            if (_settings.VoiceMeeterEdition == "auto" && MixerLayout.DetectRunning() is { } detected && detected != _layout)
+                ChangeLayout(detected);
             SaveSettingsNow();
             var enginePath = Path.Combine(AppContext.BaseDirectory, "voicemeeter-aec.exe");
             _engine.Start(enginePath, BuildEngineArguments(), AppSettings.LogPath);
@@ -970,7 +1049,7 @@ public partial class MainWindow : Window
             DiagnosticsBox.Text = exception + Environment.NewLine + _engine.Diagnostics;
             ShowPage("diagnostics");
             if (!quiet)
-                System.Windows.MessageBox.Show(this, T("Please start VoiceMeeter Potato first, then try again."), T("Could not start"), MessageBoxButton.OK, MessageBoxImage.Warning);
+                System.Windows.MessageBox.Show(this, string.Format(T("Please start VoiceMeeter {0} first, then try again."), _settings.VoiceMeeterEdition == "auto" ? "Banana or Potato" : _layout.DisplayName), T("Could not start"), MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -1007,6 +1086,7 @@ public partial class MainWindow : Window
         AecModeButton.IsEnabled = enabled;
         BypassModeButton.IsEnabled = enabled;
         MuteModeButton.IsEnabled = enabled;
+        EditionBox.IsEnabled = !enabled;
     }
 
     private void SetMode(char command)

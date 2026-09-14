@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -13,10 +12,10 @@ internal static class VoiceMeeterLabels
     [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Ansi)]
     private delegate int GetStringCall(string parameter, StringBuilder value);
 
-    public static string?[] TryRead()
+    public static string?[] TryRead(MixerLayout layout)
     {
-        var labels = new string?[8];
-        if (Process.GetProcessesByName("voicemeeter8").Length == 0) return labels;
+        var labels = new string?[layout.StripCount];
+        if (!MixerLayout.IsRunning(layout)) return labels;
 
         var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "VB", "Voicemeeter", "VoicemeeterRemote64.dll");
         if (!File.Exists(path)) return labels;

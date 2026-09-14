@@ -1,6 +1,11 @@
 # Changelog
 
-## 1.1.0 — automatic updates
+## 1.1.0 — Banana support and automatic updates
+
+- Add VoiceMeeter Banana support with its native five-strip, three-bus and 22-channel Insert layout.
+- Detect the running Banana or Potato edition automatically, with a saved manual override for configuring the app while VoiceMeeter is closed.
+- Adapt column cards, custom labels, Auto routing, channel validation, startup waiting and the PATCH INSERT guide to the selected edition.
+- Exercise both Banana's 22-channel and Potato's 34-channel transport layouts in the native preservation tests.
 
 - Check the latest stable GitHub release quietly at most once a day, with an optional manual check under Advanced.
 - Show a compact in-app and system-tray notification only when a newer version is available. Installation always requires a click and confirmation.

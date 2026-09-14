@@ -7,9 +7,10 @@ namespace VoiceMeeterAEC;
 
 public sealed class AppSettings
 {
-    public int Schema { get; set; } = 2;
+    public int Schema { get; set; } = 3;
     public string Language { get; set; } = "en";
     public string Theme { get; set; } = "dark";
+    public string VoiceMeeterEdition { get; set; } = "auto";
     public int MicrophoneStrip { get; set; } = 1;
     public string MicrophoneSide { get; set; } = "left";
     public List<int> ReferenceStrips { get; set; } = [6];
@@ -133,6 +134,7 @@ public sealed class AppSettings
     {
         if (Language is not ("en" or "fr")) Language = "en";
         if (Theme is not ("dark" or "light")) Theme = "dark";
+        if (VoiceMeeterEdition is not ("auto" or "banana" or "potato")) VoiceMeeterEdition = "auto";
         MicrophoneStrip = Math.Clamp(MicrophoneStrip, 1, 5);
         if (MicrophoneSide is not ("left" or "right")) MicrophoneSide = "left";
         ReferenceStrips = (ReferenceStrips ?? []).Where(value => value is >= 1 and <= 8 && value != MicrophoneStrip).Distinct().Order().ToList();
@@ -145,5 +147,18 @@ public sealed class AppSettings
         HoldMs = Math.Clamp(HoldMs, 0, 250);
         DelayMs = Math.Clamp(DelayMs, 0, 500);
         if (LastUpdateCheckUtc > DateTime.UtcNow.AddDays(1)) LastUpdateCheckUtc = default;
+    }
+
+    internal void NormalizeFor(MixerLayout layout)
+    {
+        MicrophoneStrip = Math.Clamp(MicrophoneStrip, 1, layout.HardwareStrips);
+        ReferenceStrips = ReferenceStrips
+            .Where(value => value >= 1 && value <= layout.StripCount && value != MicrophoneStrip)
+            .Distinct().Order().ToList();
+        if (ReferenceStrips.Count == 0) ReferenceStrips.Add(layout.DefaultPlaybackStrip);
+        SpeakerBus = Math.Clamp(SpeakerBus, 1, layout.BusCount);
+        AutoStrips = AutoStrips.Where(value => value >= 1 && value <= layout.StripCount)
+            .Distinct().Order().ToList();
+        if (AutoStrips.Count == 0) AutoStrips.AddRange(ReferenceStrips);
     }
 }

@@ -1,14 +1,14 @@
 # VoiceMeeter AEC — Windows x64 setup
 
-[Français](GUIDE-FR.md) · Version 1.1.0 · Windows x64 · VoiceMeeter Potato
+[Français](GUIDE-FR.md) · Version 1.1.0 · Windows x64 · VoiceMeeter Banana or Potato
 
-VoiceMeeter AEC attenuates speaker playback picked up by a microphone. It processes the microphone through **Voicemeeter Potato Insert Virtual ASIO**, before VoiceMeeter strip effects. VoiceMeeter retains control of the hardware. The app does not change routes, patch settings or Windows default devices.
+VoiceMeeter AEC attenuates speaker playback picked up by a microphone. It processes the microphone through the matching **VoiceMeeter Banana or Potato Insert Virtual ASIO** driver, before VoiceMeeter strip effects. VoiceMeeter retains control of the hardware. The app does not change routes, patch settings or Windows default devices.
 
 ## First setup
 
 1. Extract the Windows release into a permanent folder and open **VoiceMeeter AEC.exe**. It is a self-contained Windows app; no PowerShell or .NET installation is needed.
-2. Run VoiceMeeter Potato at **48 kHz** and configure its microphone and speaker output as usual.
-3. In the app, select the VoiceMeeter column containing your microphone and one or more playback columns containing every sound played through your speakers. Their audio becomes the echo reference. Select the A bus connected to those speakers so Auto mode knows which route to watch. The app converts column names to Insert channels automatically.
+2. Run VoiceMeeter Banana or Potato at **48 kHz** and configure its microphone and speaker output as usual. The app detects the running edition; the edition selector lets you choose manually while VoiceMeeter is closed.
+3. In the app, select the VoiceMeeter column containing your microphone and one or more playback columns containing every sound played through your speakers. Their audio becomes the echo reference. Select the A bus connected to those speakers so Auto mode knows which route to watch. The app shows only the columns and buses available in your edition and converts them to Insert channels automatically.
 4. Leave the microphone PATCH INSERT returns disabled and select **Start echo cancellation**. Open **Diagnostics** and confirm that the Insert driver reports 48 kHz and the `blocks` counter advances. The driver accepts one Insert client at a time.
 5. In VoiceMeeter, open **Menu → System Settings / Options → PATCH INSERT**. At the PRE-FX insert point, enable left and right only for the microphone column. Leave every other return disabled.
 6. In an application receiving your VoiceMeeter microphone bus, try **Mute**, **Bypass**, and **AEC on** from the app or tray menu. Keep the microphone out of your speaker routes.
@@ -20,13 +20,27 @@ VoiceMeeter AEC attenuates speaker playback picked up by a microphone. It proces
 
 The reference must contain every playback source whose acoustic echo should be removed, and exclude the raw or processed microphone. Select as many playback columns as needed. The app combines the first stereo pair from each selected column into the reference sent to AEC.
 
-For a simple configuration where all playback passes through **VAIO**, select only VAIO. If speaker audio is split across VAIO, AUX, VAIO3 or hardware strips, select every relevant column. Sources played directly outside VoiceMeeter cannot be included. Only the first left/right pair of each virtual strip is used; additional surround channels are not included.
+For a simple configuration where all playback passes through **VAIO**, select only VAIO. If speaker audio is split across VAIO, AUX, hardware strips, or VAIO3 on Potato, select every relevant column. Sources played directly outside VoiceMeeter cannot be included. Only the first left/right pair of each virtual strip is used; additional surround channels are not included.
 
 The Insert signal is before effects and faders, not the final output-bus mix. Different effects, clipping or abrupt volume changes between reference and speakers can reduce cancellation.
 
 ## Channel map and Auto
 
-Numbers start at 1 and refer to Potato Insert channels, not sound-card channels.
+Numbers start at 1 and refer to the selected edition's Insert channels, not sound-card channels.
+
+### Banana
+
+| Strip | Insert channels | Auto strip |
+|---|---|---|
+| IN1 | 1,2 | 1 |
+| IN2 | 3,4 | 2 |
+| IN3 | 5,6 | 3 |
+| VAIO | 7–14; stereo 7,8 | 4 |
+| AUX | 15–22; stereo 15,16 | 5 |
+
+Banana Auto can watch A1, A2 or A3.
+
+### Potato
 
 | Strip | Insert channels | Auto strip |
 |---|---|---|
@@ -39,9 +53,9 @@ Numbers start at 1 and refer to Potato Insert channels, not sound-card channels.
 | AUX | 19–26; stereo 19,20 | 7 |
 | VAIO3 | 27–34; stereo 27,28 | 8 |
 
-**Selected strips:** under Advanced, select columns such as VAIO, AUX and VAIO3. AEC is on if any selected strip has an active route to the chosen output bus. The default is VAIO to A2; choose the bus actually connected to your speakers.
+**Selected strips:** under Advanced, select columns such as VAIO, AUX and, on Potato, VAIO3. AEC is on if any selected strip has an active route to the chosen output bus. The default is VAIO to A2; choose the bus actually connected to your speakers.
 
-**All strips to output bus:** watch routes from all eight strips to A1, A2, A3, A4 or A5, excluding strips receiving the configured microphone returns. If other strips contain processed microphone returns, use Selected strips to exclude those too.
+**All strips to output bus:** watch all five Banana strips to A1–A3 or all eight Potato strips to A1–A5, excluding the configured microphone-return strip. If another strip contains a processed microphone return, use Selected strips to exclude it too.
 
 Auto reads route buttons, mute, strip/bus gain, bus-specific gain and solo. It follows **routing, not instantaneous audio level**. Silence on an active route does not turn Auto off. When all watched routes are inactive it selects bypass. If routing cannot be read, it keeps AEC on. It does not switch output devices or change routes.
 
@@ -69,7 +83,7 @@ Settings save automatically. After testing, choose Auto or the desired starting 
 
 It waits up to 90 seconds for VoiceMeeter and retries selected initial driver failures at five-second intervals. Failure is reported through the tray. It does not endlessly restart after a crash; native driver reset/stall recovery stays limited to two attempts. A driver call that itself hangs may exceed the startup waiting deadline.
 
-Settings are in `%LOCALAPPDATA%\VoiceMeeterAEC\settings.json`: selected columns, Auto scope, speaker bus, timing, starting mode, suppression and language. They save automatically. Changes that affect engine startup apply the next time the engine starts; disable PATCH INSERT, stop, and reopen it first.
+Settings are in `%LOCALAPPDATA%\VoiceMeeterAEC\settings.json`: VoiceMeeter edition preference, selected columns, Auto scope, speaker bus, timing, starting mode, suppression and language. They save automatically. Changes that affect engine startup apply the next time the engine starts; disable PATCH INSERT, stop, and reopen it first.
 
 Startup uses the current user's Windows Run setting, with no administrator rights or service. Disable the option to remove it. After moving or upgrading the app, open the new copy once so the saved startup path can be refreshed.
 
@@ -93,12 +107,13 @@ Direct executable launches retain a diagnostic console:
 .\voicemeeter-aec.exe --help
 .\voicemeeter-aec.exe --self-test
 .\voicemeeter-aec.exe --self-test --suppression balanced
-.\voicemeeter-aec.exe --run --mic 1 --ref 11,12 --returns 1,2 --auto-strips 6,7,8 --auto-bus 2
-.\voicemeeter-aec.exe --run --mic 1 --ref 11,12,19,20,27,28 --returns 1,2 --auto-strips 6,7,8 --auto-bus 2
-.\voicemeeter-aec.exe --run --mic 1 --ref 11,12 --returns 1,2 --auto-strips all --auto-bus 2 --suppression balanced
+.\voicemeeter-aec.exe --probe --edition banana
+.\voicemeeter-aec.exe --run --edition banana --mic 1 --ref 7,8,15,16 --returns 1,2 --auto-strips 4,5 --auto-bus 2
+.\voicemeeter-aec.exe --run --edition potato --mic 1 --ref 11,12,19,20,27,28 --returns 1,2 --auto-strips 6,7,8 --auto-bus 2
+.\voicemeeter-aec.exe --run --edition potato --mic 1 --ref 11,12 --returns 1,2 --auto-strips all --auto-bus 2 --suppression balanced
 ```
 
-Starting modes: `--aec`, `--bypass`, `--mute`, `--auto` (default Auto). Console keys: A/B/M/T/Q. `--auto-strip` remains an alias for `--auto-strips`. `--auto-check` reads VAIO/A2; `--probe` queries the Insert driver without streaming and requires its client slot to be free. Help and self-tests open no audio device. Streaming requires `--run`.
+Starting modes: `--aec`, `--bypass`, `--mute`, `--auto` (default Auto). Console keys: A/B/M/T/Q. `--auto-strip` remains an alias for `--auto-strips`. `--probe --edition banana|potato` queries that Insert driver without streaming and requires its client slot to be free. Help and self-tests open no audio device. Streaming requires `--run`; direct CLI runs default to Potato when `--edition` is omitted.
 
 Run **Build.cmd** from the source directory. Windows x64, Rust 1.91+, Visual C++, the Windows SDK and the .NET 8 SDK or newer are required. Rust dependencies, ASIO headers and the local Sonora patch are included. The build publishes a self-contained WPF desktop app; users do not need to install .NET. The unsigned audio engine requires the Visual C++ x64 runtime.
 

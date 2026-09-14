@@ -35,8 +35,10 @@ try {
  Copy-Item -LiteralPath 'vendor\DOTNET-LICENSE.txt' -Destination $appOutput -Force
  if(-not $SkipUiChecks){
   $appExecutable=Join-Path $appOutput 'VoiceMeeter AEC.exe'
-  $uiCheck=Start-Process -FilePath $appExecutable -ArgumentList @('--check-ui','--dark') -WindowStyle Hidden -Wait -PassThru
-  if($uiCheck.ExitCode -ne 0){throw 'Desktop app checks failed'}
+  foreach($edition in @('potato','banana')){
+   $uiCheck=Start-Process -FilePath $appExecutable -ArgumentList @('--check-ui','--dark',('--'+$edition)) -WindowStyle Hidden -Wait -PassThru
+   if($uiCheck.ExitCode -ne 0){throw ('Desktop app checks failed: '+$edition)}
+  }
   foreach($page in @('setup','guide','advanced')){
    $previewPath=Join-Path $PSScriptRoot ("docs\images\app-$page.png")
    $previewArguments=@('--preview',$previewPath,'--preview-page',$page,'--dark')
@@ -44,6 +46,9 @@ try {
    $preview=Start-Process -FilePath $appExecutable -ArgumentList $previewArguments -Wait -PassThru
    if($preview.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $previewPath)){throw "Desktop app $page preview failed"}
   }
+  $bananaPreviewPath=Join-Path $PSScriptRoot 'docs\images\app-setup-banana.png'
+  $bananaPreview=Start-Process -FilePath $appExecutable -ArgumentList @('--preview',$bananaPreviewPath,'--preview-page','setup','--dark','--banana') -Wait -PassThru
+  if($bananaPreview.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $bananaPreviewPath)){throw 'Desktop app Banana preview failed'}
  }
  Write-Output 'Audio engine, desktop app and validation passed. Strong is optional and has documented quality failures.'
 }finally{

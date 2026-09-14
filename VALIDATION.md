@@ -7,11 +7,11 @@ Les contrôles passent pour Douce et Équilibrée. **Forte expose la suppression
 ## Contrôles automatisés
 
 - Sept tests Rust : framing exact du bypass selon la taille des callbacks, maintien borné, référence absente/silence/valeurs non finies, fondus, reprise sélective, analyse de plusieurs références et masques Auto multipistes avec exclusion des retours micro.
-- Transport natif : 34 canaux, doubles tampons, PCM16/24/32 et float32. Canaux non sélectionnés identiques bit à bit.
+- Transport natif : 22 canaux Banana et 34 canaux Potato, doubles tampons, PCM16/24/32 et float32. Canaux non sélectionnés identiques bit à bit.
 - Callback C++ réel vers moteur Rust via FFI, sur 300 blocs simulés : framing, silence immédiat, préservation et détection d'indice invalide.
 - Événements natifs : reset, changement de fréquence, notification de latence seule, priorité de l'arrêt et combinaison des routes Auto actives/inactives/inconnues.
 - Processus caché recevant M/B/A/T/Q par le même pipe que le menu de notification. Contrôles natifs réels, diagnostics et arrêt propre vérifiés, sans périphérique audio.
-- Interface anglaise/française : Auto par défaut, changement de langue conservant mode/profil, sauvegarde/relecture, inscription isolée au démarrage Windows, masquage/restauration de la fenêtre, métadonnées et versions de mise à jour, somme de contrôle et refus des chemins d'archive dangereux.
+- Interface anglaise/française : deux dispositions de mixeur et leurs canaux, sélection automatique/manuelle de l'édition, Auto par défaut, changement de langue conservant mode/profil, sauvegarde/relecture, inscription isolée au démarrage Windows, masquage/restauration de la fenêtre, métadonnées et versions de mise à jour, somme de contrôle et refus des chemins d'archive dangereux.
 - Les chemins locaux du compilateur sont remappés ; les archives publiques sont contrôlées pour exclure comptes locaux, réglages, raccourcis, journaux personnels et dossiers de compilation.
 
 ## Mesures audio
@@ -42,8 +42,8 @@ Le démarrage à la connexion attend VoiceMeeter et retente certains échecs ini
 
 Un premier usage de la version précédente a été signalé comme fonctionnel, notamment le silence micro, avec encore des sons d'enceintes audibles. Il s'agit d'un retour informel, pas d'une mesure acoustique contrôlée.
 
-Aucun flux audio réel, déconnexion Windows ou redémarrage n'a été effectué pour cette mise à jour. Ordre réel au démarrage, initialisation du pilote sans console, stabilité longue durée, reprise réelle, transitions Auto multipistes, qualité vocale, comparaison perceptive des profils et latence doivent encore être validés sur le terrain. Les contrôles automatiques n'interrompent pas l'audio actif.
+Aucun flux audio Banana réel, déconnexion Windows ou redémarrage n'a été effectué pour cette mise à jour. L'inscription du pilote Banana et le chemin logiciel à 22 canaux sont contrôlés, mais un utilisateur de Banana doit encore confirmer le flux réel, la lecture des routes et PATCH INSERT. Ordre réel au démarrage, initialisation du pilote sans console, stabilité longue durée, reprise réelle, transitions Auto multipistes, qualité vocale, comparaison perceptive des profils et latence doivent encore être validés sur le terrain. Les contrôles automatiques n'interrompent pas l'audio actif.
 
 Les tableaux du programme ont une capacité fixe ; aucun appel Remote, journal ni allocation du programme dans le callback audio. Les allocations internes Sonora ne sont pas instrumentées. Sa suite de développement complète n'a pas été lancée car ces dépendances ne sont pas incluses ; le correctif est couvert par les scénarios et tests d'intégration de l'application.
 
-Cible : Windows x64, VoiceMeeter Potato avec pilote Insert x64, 48 kHz et runtime Visual C++ x64. L'application de bureau est autonome : les utilisateurs n'ont pas besoin d'installer .NET ni de lancer PowerShell. Les binaires ne sont pas signés. Aucune autre édition VoiceMeeter n'est déclarée compatible.
+Cible : Windows x64, VoiceMeeter Banana ou Potato avec le pilote Insert x64 correspondant, 48 kHz et runtime Visual C++ x64. L'application de bureau est autonome : les utilisateurs n'ont pas besoin d'installer .NET ni de lancer PowerShell. Les binaires ne sont pas signés. VoiceMeeter Standard n'est pas pris en charge car il ne fournit pas la disposition Insert nécessaire.
