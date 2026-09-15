@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1 — restore Strong as the default
+
+- Restore Strong as the default for new, missing or invalid suppression settings and CLI streams. Preserve explicitly saved Gentle, Balanced and Strong choices.
+- Update the interface and setup guides to match the default. Keep all 1.2.0 reliability, reference-mixing and usability improvements.
+- Strong's documented synthetic near-end preservation limitations and the Gentle/Balanced quality checks are unchanged.
+
 ## 1.2.0 — reliable startup, safer updates and clearer audio feedback
 
 - Default new and missing suppression settings to Balanced; preserve explicitly saved profiles. Strong remains optional and fails three synthetic near-end preservation checks.

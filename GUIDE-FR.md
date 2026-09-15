@@ -1,6 +1,6 @@
 # VoiceMeeter AEC — configuration Windows x64
 
-[English](GUIDE-EN.md) · Version 1.2.0 · Windows x64 · VoiceMeeter Banana ou Potato
+[English](GUIDE-EN.md) · Version 1.2.1 · Windows x64 · VoiceMeeter Banana ou Potato
 
 VoiceMeeter AEC atténue les sons des enceintes repris par le micro. Il utilise le pilote **VoiceMeeter Banana ou Potato Insert Virtual ASIO** correspondant, avant les effets de piste. VoiceMeeter garde le contrôle du matériel. L'application ne modifie ni les routes, ni les PATCH INSERT, ni les périphériques Windows par défaut.
 
@@ -68,8 +68,8 @@ AEC manuel, Bypass et Silence remplacent Auto jusqu'à ce qu'on le sélectionne 
 | Réglage | Effet |
 |---|---|
 | Douce | Suppression moins agressive qui préserve le mieux la voix proche dans les tests synthétiques. |
-| Équilibrée | Réglage recommandé par défaut ; suppression modérée qui préserve mieux les sons utiles. |
-| Forte | Suppression d’origine optionnelle qui peut fortement atténuer la voix pendant les superpositions difficiles. À tester avant adoption. |
+| Équilibrée | Suppression modérée qui préserve mieux les sons utiles dans les tests synthétiques. |
+| Forte | Réglage par défaut des nouvelles configurations ; suppression d’origine qui peut fortement atténuer la voix pendant les superpositions difficiles. À tester avant adoption. |
 | Maintien micro | Ajoute réellement 0–250 ms de retard au micro. Garder normalement 0. |
 | Estimation AEC | Indication de délai distincte, 0–500 ms. Commencer à 0 ; ce n'est pas un autre tampon. |
 

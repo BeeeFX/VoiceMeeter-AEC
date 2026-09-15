@@ -147,7 +147,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
         (0, 0, 0, 3, false, 2);
     let mut auto_strips = None;
     let mut edition = Edition::Potato;
-    let mut suppression = ResidualSuppression::Balanced;
+    let mut suppression = ResidualSuppression::Standard;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {

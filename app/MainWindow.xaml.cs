@@ -415,7 +415,7 @@ public partial class MainWindow : Window
         if (_settings.AutoStrips.Count == 0) _settings.AutoStrips.AddRange(_settings.ReferenceStrips);
         _settings.WatchAllStrips = WatchAllBox.IsChecked == true;
         _settings.MicrophoneSide = SelectedTag(MicSideBox, "left");
-        _settings.Suppression = SelectedTag(SuppressionBox, "balanced");
+        _settings.Suppression = SelectedTag(SuppressionBox, "strong");
         _settings.StartMode = SelectedTag(StartModeBox, "auto");
         _settings.HoldMs = (int)Math.Round(HoldSlider.Value);
         _settings.DelayMs = (int)Math.Round(DelaySlider.Value);
@@ -620,7 +620,7 @@ public partial class MainWindow : Window
         GuideStopRule.Text = T("Before stopping the engine, switch those two PATCH INSERT buttons off.");
         BehaviourHeading.Text = T("Behaviour");
         SuppressionLabel.Text = T("Echo suppression");
-        SuppressionHelp.Text = T("Balanced protects your voice while reducing echo. Strong can suppress wanted sound.");
+        SuppressionHelp.Text = T("Strong removes the most echo, but may affect your voice.");
         StartModeLabel.Text = T("Mode when the app starts");
         StartModeHelp.Text = T("Auto is recommended for everyday use.");
         MicSideLabel.Text = T("Microphone side");
@@ -662,7 +662,7 @@ public partial class MainWindow : Window
 
     private void SetComboLabels()
     {
-        var suppression = new Dictionary<string, string> { ["gentle"] = T("Gentle"), ["balanced"] = T("Balanced (recommended)"), ["strong"] = T("Strong") };
+        var suppression = new Dictionary<string, string> { ["gentle"] = T("Gentle"), ["balanced"] = T("Balanced"), ["strong"] = T("Strong") };
         foreach (ComboBoxItem item in SuppressionBox.Items) item.Content = suppression[item.Tag!.ToString()!];
         var modes = new Dictionary<string, string> { ["bypass"] = "Bypass", ["aec"] = T("AEC always on"), ["auto"] = T("Auto (recommended)"), ["mute"] = T("Mute microphone") };
         foreach (ComboBoxItem item in StartModeBox.Items) item.Content = modes[item.Tag!.ToString()!];
@@ -1006,7 +1006,7 @@ public partial class MainWindow : Window
         if (!upgraded.ReferenceStrips.SequenceEqual([7]) || !multiple.ReferenceStrips.SequenceEqual([6, 7]) ||
             !upgraded.CheckForUpdatesAutomatically || updatesDisabled.CheckForUpdatesAutomatically ||
             upgraded.VoiceMeeterEdition != "auto" || bananaSettings.VoiceMeeterEdition != "banana" ||
-            defaults.Suppression != "balanced" || !defaults.StartEngineWithWindows || startupEngineDisabled.StartEngineWithWindows)
+            defaults.Suppression != "strong" || !defaults.StartEngineWithWindows || startupEngineDisabled.StartEngineWithWindows)
             throw new InvalidOperationException("Saved settings migration is invalid.");
         StartupBox.IsChecked = false;
         UpdateStartupControls();
