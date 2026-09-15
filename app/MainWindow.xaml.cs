@@ -93,7 +93,7 @@ public partial class MainWindow : Window
         ["Before stopping the engine, switch those two PATCH INSERT buttons off."] = "Avant d’arrêter le moteur, désactivez ces deux boutons PATCH INSERT.",
         ["Behaviour"] = "Comportement",
         ["Echo suppression"] = "Suppression de l’écho",
-        ["Gentle preserves your voice best."] = "Douce préserve le mieux votre voix.",
+        ["Strong removes the most echo, but may affect your voice."] = "Forte supprime le plus d’écho, mais peut affecter votre voix.",
         ["Mode when the app starts"] = "Mode au démarrage de l’application",
         ["Auto is recommended for everyday use."] = "Auto est recommandé au quotidien.",
         ["Microphone side"] = "Côté du microphone",
@@ -107,7 +107,9 @@ public partial class MainWindow : Window
         ["Microphone hold"] = "Retard réel du microphone",
         ["AEC delay estimate"] = "Estimation du délai AEC",
         ["Start VoiceMeeter AEC when I sign in to Windows"] = "Démarrer VoiceMeeter AEC à l’ouverture de ma session Windows",
-        ["The app starts quietly in the system tray and waits for VoiceMeeter."] = "L’application démarre discrètement dans la zone de notification et attend VoiceMeeter.",
+        ["The app starts quietly in the notification area."] = "L’application démarre discrètement dans la zone de notification.",
+        ["Start the engine automatically after sign-in"] = "Démarrer automatiquement le moteur après l’ouverture de session",
+        ["Waits for VoiceMeeter, then starts the engine using your saved mode and settings."] = "Attend VoiceMeeter, puis démarre le moteur avec le mode et les réglages enregistrés.",
         ["Updates"] = "Mises à jour",
         ["Current version {0}"] = "Version actuelle {0}",
         ["Current version {0} · You’re up to date."] = "Version actuelle {0} · Vous êtes à jour.",
@@ -363,6 +365,7 @@ public partial class MainWindow : Window
         HoldSlider.Value = _settings.HoldMs;
         DelaySlider.Value = _settings.DelayMs;
         StartupBox.IsChecked = _settings.StartWithWindows;
+        StartupEngineBox.IsChecked = _settings.StartEngineWithWindows;
         AutomaticUpdatesBox.IsChecked = _settings.CheckForUpdatesAutomatically;
         SelectComboByTag(MicSideBox, _settings.MicrophoneSide);
         SelectComboByTag(SuppressionBox, _settings.Suppression);
@@ -372,6 +375,7 @@ public partial class MainWindow : Window
         UpdateReferenceAvailability(_settings.MicrophoneStrip);
         UpdatePatchDiagram(_settings.MicrophoneStrip);
         UpdateAutoControls();
+        UpdateStartupControls();
     }
 
     private static void SelectComboByTag(ComboBox combo, string tag)
@@ -390,11 +394,12 @@ public partial class MainWindow : Window
         if (_settings.AutoStrips.Count == 0) _settings.AutoStrips.AddRange(_settings.ReferenceStrips);
         _settings.WatchAllStrips = WatchAllBox.IsChecked == true;
         _settings.MicrophoneSide = SelectedTag(MicSideBox, "left");
-        _settings.Suppression = SelectedTag(SuppressionBox, "gentle");
+        _settings.Suppression = SelectedTag(SuppressionBox, "strong");
         _settings.StartMode = SelectedTag(StartModeBox, "auto");
         _settings.HoldMs = (int)Math.Round(HoldSlider.Value);
         _settings.DelayMs = (int)Math.Round(DelaySlider.Value);
         _settings.StartWithWindows = StartupBox.IsChecked == true;
+        _settings.StartEngineWithWindows = StartupEngineBox.IsChecked == true;
         _settings.CheckForUpdatesAutomatically = AutomaticUpdatesBox.IsChecked == true;
         _settings.VoiceMeeterEdition = SelectedTag(EditionBox, "auto");
     }
@@ -463,7 +468,16 @@ public partial class MainWindow : Window
     {
         if (!_ready) return;
         UpdateAutoControls();
+        UpdateStartupControls();
         QueueSave();
+    }
+
+    private void UpdateStartupControls()
+    {
+        if (StartupEngineBox is null || StartupEngineHelp is null || StartupBox is null) return;
+        var enabled = StartupBox.IsChecked == true;
+        StartupEngineBox.IsEnabled = enabled;
+        StartupEngineHelp.Opacity = enabled ? 1 : 0.55;
     }
 
     private void TimingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -585,7 +599,7 @@ public partial class MainWindow : Window
         GuideStopRule.Text = T("Before stopping the engine, switch those two PATCH INSERT buttons off.");
         BehaviourHeading.Text = T("Behaviour");
         SuppressionLabel.Text = T("Echo suppression");
-        SuppressionHelp.Text = T("Gentle preserves your voice best.");
+        SuppressionHelp.Text = T("Strong removes the most echo, but may affect your voice.");
         StartModeLabel.Text = T("Mode when the app starts");
         StartModeHelp.Text = T("Auto is recommended for everyday use.");
         MicSideLabel.Text = T("Microphone side");
@@ -599,7 +613,10 @@ public partial class MainWindow : Window
         HoldLabel.Text = T("Microphone hold");
         DelayLabel.Text = T("AEC delay estimate");
         StartupBox.Content = T("Start VoiceMeeter AEC when I sign in to Windows");
-        StartupHelp.Text = T("The app starts quietly in the system tray and waits for VoiceMeeter.");
+        StartupHelp.Text = T("The app starts quietly in the notification area.");
+        StartupEngineBox.Content = T("Start the engine automatically after sign-in");
+        StartupEngineHelp.Text = T("Waits for VoiceMeeter, then starts the engine using your saved mode and settings.");
+        UpdateStartupControls();
         UpdatesHeading.Text = T("Updates");
         AutomaticUpdatesBox.Content = T("Check for updates automatically");
         AutomaticUpdatesHelp.Text = T("Checks GitHub Releases once a day. Installation always asks first.");
@@ -842,7 +859,7 @@ public partial class MainWindow : Window
         if (_arguments.Contains("--startup"))
         {
             Hide();
-            BeginStartupWait();
+            if (_settings.StartEngineWithWindows) BeginStartupWait();
         }
         else
         {
@@ -931,10 +948,21 @@ public partial class MainWindow : Window
         var multiple = AppSettings.Parse("""{"Schema":2,"ReferenceStrips":[6,7]}""", false);
         var updatesDisabled = AppSettings.Parse("""{"Schema":2,"CheckForUpdatesAutomatically":false}""", false);
         var bananaSettings = AppSettings.Parse("""{"Schema":3,"VoiceMeeterEdition":"banana"}""", false);
+        var defaults = new AppSettings();
+        var startupEngineDisabled = AppSettings.Parse("""{"Schema":3,"StartWithWindows":true,"StartEngineWithWindows":false}""", false);
         if (!upgraded.ReferenceStrips.SequenceEqual([7]) || !multiple.ReferenceStrips.SequenceEqual([6, 7]) ||
             !upgraded.CheckForUpdatesAutomatically || updatesDisabled.CheckForUpdatesAutomatically ||
-            upgraded.VoiceMeeterEdition != "auto" || bananaSettings.VoiceMeeterEdition != "banana")
+            upgraded.VoiceMeeterEdition != "auto" || bananaSettings.VoiceMeeterEdition != "banana" ||
+            defaults.Suppression != "strong" || !defaults.StartEngineWithWindows || startupEngineDisabled.StartEngineWithWindows)
             throw new InvalidOperationException("Saved settings migration is invalid.");
+        StartupBox.IsChecked = false;
+        UpdateStartupControls();
+        if (StartupEngineBox.IsEnabled)
+            throw new InvalidOperationException("Engine startup can be enabled while Windows startup is off.");
+        StartupBox.IsChecked = true;
+        UpdateStartupControls();
+        if (!StartupEngineBox.IsEnabled)
+            throw new InvalidOperationException("Engine startup did not become available with Windows startup.");
         ChangeLayout(MixerLayout.Potato);
         foreach (var language in new[] { "en", "fr" })
         {
@@ -1026,7 +1054,7 @@ public partial class MainWindow : Window
         };
         UpdateButton.IsEnabled = !_updateBusy;
         AutomaticUpdatesBox.IsEnabled = !_updateBusy;
-        UpdateAvailableButton.Content = "↓  " + T("Update available");
+        UpdateAvailableText.Text = T("Update available");
         UpdateAvailableButton.Visibility = _availableUpdate is null ? Visibility.Collapsed : Visibility.Visible;
     }
 

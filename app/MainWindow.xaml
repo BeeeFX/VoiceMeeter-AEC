@@ -45,7 +45,9 @@
         </StackPanel>
 
         <StackPanel Grid.Row="3" Margin="8,0,8,7">
-          <Button x:Name="UpdateAvailableButton" Content="↓  Update available" Style="{StaticResource NavButton}" Padding="0,9" Margin="0,0,0,5" Visibility="Collapsed" Click="UpdateAvailable_Click" />
+          <Button x:Name="UpdateAvailableButton" Style="{StaticResource NavButton}" Padding="0,9" Margin="0,0,0,5" Visibility="Collapsed" Click="UpdateAvailable_Click">
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition /></Grid.ColumnDefinitions><TextBlock Text="&#xE896;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" /><TextBlock x:Name="UpdateAvailableText" Grid.Column="1" Text="Update available" Margin="10,0,0,0" VerticalAlignment="Center" /></Grid>
+          </Button>
           <Button x:Name="ThemeButton" Content="☀  Light mode" Style="{StaticResource NavButton}" Padding="0,9" Click="Theme_Click" />
           <TextBlock x:Name="LanguageLabel" Text="Language" Foreground="{DynamicResource SubtleInk}" Margin="0,12,0,6" FontSize="11" />
           <ComboBox x:Name="LanguageBox" SelectedIndex="0" SelectionChanged="LanguageBox_SelectionChanged">
@@ -227,8 +229,8 @@
                 <Grid Margin="0,17,0,0">
                   <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="240" /></Grid.ColumnDefinitions>
                   <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                  <StackPanel Margin="0,0,18,16"><TextBlock x:Name="SuppressionLabel" Text="Echo suppression" FontWeight="SemiBold" /><TextBlock x:Name="SuppressionHelp" Text="Gentle preserves your voice best." Foreground="{DynamicResource MutedInk}" Margin="0,3,0,0" /></StackPanel>
-                  <ComboBox x:Name="SuppressionBox" Grid.Column="1" Margin="0,0,0,12" VerticalAlignment="Top" SelectedIndex="0" SelectionChanged="SettingChanged"><ComboBoxItem Content="Gentle" Tag="gentle" /><ComboBoxItem Content="Balanced" Tag="balanced" /><ComboBoxItem Content="Strong" Tag="strong" /></ComboBox>
+                  <StackPanel Margin="0,0,18,16"><TextBlock x:Name="SuppressionLabel" Text="Echo suppression" FontWeight="SemiBold" /><TextBlock x:Name="SuppressionHelp" Text="Strong removes the most echo, but may affect your voice." Foreground="{DynamicResource MutedInk}" Margin="0,3,0,0" TextWrapping="Wrap" /></StackPanel>
+                  <ComboBox x:Name="SuppressionBox" Grid.Column="1" Margin="0,0,0,12" VerticalAlignment="Top" SelectedIndex="2" SelectionChanged="SettingChanged"><ComboBoxItem Content="Gentle" Tag="gentle" /><ComboBoxItem Content="Balanced" Tag="balanced" /><ComboBoxItem Content="Strong" Tag="strong" /></ComboBox>
                   <StackPanel Grid.Row="1" Margin="0,0,18,16"><TextBlock x:Name="StartModeLabel" Text="Mode when the app starts" FontWeight="SemiBold" /><TextBlock x:Name="StartModeHelp" Text="Auto is recommended for everyday use." Foreground="{DynamicResource MutedInk}" Margin="0,3,0,0" /></StackPanel>
                   <ComboBox x:Name="StartModeBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,12" VerticalAlignment="Top" SelectedIndex="2" SelectionChanged="SettingChanged"><ComboBoxItem Content="Bypass" Tag="bypass" /><ComboBoxItem Content="AEC always on" Tag="aec" /><ComboBoxItem Content="Auto (recommended)" Tag="auto" /><ComboBoxItem Content="Mute microphone" Tag="mute" /></ComboBox>
                   <StackPanel Grid.Row="2" Margin="0,0,18,0"><TextBlock x:Name="MicSideLabel" Text="Microphone side" FontWeight="SemiBold" /><TextBlock x:Name="MicSideHelp" Text="Most mono microphones arrive on the left." Foreground="{DynamicResource MutedInk}" Margin="0,3,0,0" /></StackPanel>
@@ -269,7 +271,9 @@
             <Border Style="{StaticResource Card}" Margin="0,0,0,16">
               <StackPanel>
                 <CheckBox x:Name="StartupBox" Content="Start VoiceMeeter AEC when I sign in to Windows" Checked="SettingChanged" Unchecked="SettingChanged" />
-                <TextBlock x:Name="StartupHelp" Text="The app starts quietly in the system tray and waits for VoiceMeeter." Foreground="{DynamicResource MutedInk}" Margin="25,5,0,0" />
+                <TextBlock x:Name="StartupHelp" Text="The app starts quietly in the notification area." Foreground="{DynamicResource MutedInk}" Margin="25,5,0,0" />
+                <CheckBox x:Name="StartupEngineBox" Content="Start the engine automatically after sign-in" Margin="25,16,0,0" Checked="SettingChanged" Unchecked="SettingChanged" />
+                <TextBlock x:Name="StartupEngineHelp" Text="Waits for VoiceMeeter, then starts the engine using your saved mode and settings." Foreground="{DynamicResource MutedInk}" Margin="50,5,0,0" TextWrapping="Wrap" />
               </StackPanel>
             </Border>
 
@@ -278,7 +282,7 @@
                 <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <StackPanel Margin="0,0,24,0">
                   <TextBlock x:Name="UpdatesHeading" Text="Updates" FontSize="16" FontWeight="SemiBold" />
-                  <TextBlock x:Name="UpdateStatusText" Text="Current version 1.1.2" Foreground="{DynamicResource MutedInk}" Margin="0,5,0,11" TextWrapping="Wrap" />
+                  <TextBlock x:Name="UpdateStatusText" Text="Current version 1.1.3" Foreground="{DynamicResource MutedInk}" Margin="0,5,0,11" TextWrapping="Wrap" />
                   <CheckBox x:Name="AutomaticUpdatesBox" Content="Check for updates automatically" Checked="SettingChanged" Unchecked="SettingChanged" />
                   <TextBlock x:Name="AutomaticUpdatesHelp" Text="Checks GitHub Releases once a day. Installation always asks first." Foreground="{DynamicResource MutedInk}" Margin="25,5,0,0" TextWrapping="Wrap" />
                 </StackPanel>

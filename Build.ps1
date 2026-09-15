@@ -51,7 +51,7 @@ try {
   $bananaPreview=Start-Process -FilePath $appExecutable -ArgumentList @('--preview',$bananaPreviewPath,'--preview-page','setup','--dark','--banana') -Wait -PassThru
   if($bananaPreview.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $bananaPreviewPath)){throw 'Desktop app Banana preview failed'}
  }
- Write-Output 'Audio engine, desktop app and validation passed. Strong is optional and has documented quality failures.'
+ Write-Output 'Audio engine, desktop app and validation passed. Strong remains outside the passing quality gate and has documented near-end preservation failures.'
 }finally{
  $env:CARGO_ENCODED_RUSTFLAGS=$previousFlags
  if($null -eq $previousDotnetHome){Remove-Item Env:DOTNET_CLI_HOME -ErrorAction SilentlyContinue}else{$env:DOTNET_CLI_HOME=$previousDotnetHome}

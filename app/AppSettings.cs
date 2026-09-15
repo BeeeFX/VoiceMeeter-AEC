@@ -24,10 +24,11 @@ public sealed class AppSettings
     public List<int> AutoStrips { get; set; } = [6];
     public bool WatchAllStrips { get; set; }
     public string StartMode { get; set; } = "auto";
-    public string Suppression { get; set; } = "gentle";
+    public string Suppression { get; set; } = "strong";
     public int HoldMs { get; set; }
     public int DelayMs { get; set; }
     public bool StartWithWindows { get; set; }
+    public bool StartEngineWithWindows { get; set; } = true;
     public bool CheckForUpdatesAutomatically { get; set; } = true;
     public DateTime LastUpdateCheckUtc { get; set; }
     [JsonIgnore] public bool MigratedFromLegacy { get; private set; }
@@ -101,7 +102,7 @@ public sealed class AppSettings
             AutoStrips = strips,
             WatchAllStrips = ReadInt(root, "autoScope", 0) == 1,
             StartMode = mode switch { 0 => "bypass", 1 => "aec", 3 => "mute", _ => "auto" },
-            Suppression = ReadString(root, "suppression", "gentle"),
+            Suppression = ReadString(root, "suppression", "strong"),
             HoldMs = ReadInt(root, "hold", 0),
             DelayMs = ReadInt(root, "delay", 0),
             StartWithWindows = legacyStartupExists,
@@ -143,7 +144,7 @@ public sealed class AppSettings
         AutoStrips = (AutoStrips ?? []).Where(value => value is >= 1 and <= 8).Distinct().Order().ToList();
         if (AutoStrips.Count == 0) AutoStrips.AddRange(ReferenceStrips);
         if (StartMode is not ("bypass" or "aec" or "auto" or "mute")) StartMode = "auto";
-        if (Suppression is not ("gentle" or "balanced" or "strong")) Suppression = "gentle";
+        if (Suppression is not ("gentle" or "balanced" or "strong")) Suppression = "strong";
         HoldMs = Math.Clamp(HoldMs, 0, 250);
         DelayMs = Math.Clamp(DelayMs, 0, 500);
         if (LastUpdateCheckUtc > DateTime.UtcNow.AddDays(1)) LastUpdateCheckUtc = default;

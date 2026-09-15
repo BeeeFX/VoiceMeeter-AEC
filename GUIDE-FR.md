@@ -1,6 +1,6 @@
 # VoiceMeeter AEC — configuration Windows x64
 
-[English](GUIDE-EN.md) · Version 1.1.2 · Windows x64 · VoiceMeeter Banana ou Potato
+[English](GUIDE-EN.md) · Version 1.1.3 · Windows x64 · VoiceMeeter Banana ou Potato
 
 VoiceMeeter AEC atténue les sons des enceintes repris par le micro. Il utilise le pilote **VoiceMeeter Banana ou Potato Insert Virtual ASIO** correspondant, avant les effets de piste. VoiceMeeter garde le contrôle du matériel. L'application ne modifie ni les routes, ni les PATCH INSERT, ni les périphériques Windows par défaut.
 
@@ -65,9 +65,9 @@ AEC manuel, Bypass et Silence remplacent Auto jusqu'à ce qu'on le sélectionne 
 
 | Réglage | Effet |
 |---|---|
-| Douce | Défaut ; suppression moins agressive de la version précédente. |
+| Douce | Suppression moins agressive qui préserve le mieux la voix proche dans les tests synthétiques. |
 | Équilibrée | Renforcement modéré ; à essayer d'abord si Douce laisse trop d'écho. |
-| Forte | Suppression d'origine ; peut fortement atténuer la voix pendant les superpositions difficiles. |
+| Forte | Réglage par défaut des nouvelles configurations ; suppression d’origine qui peut fortement atténuer la voix pendant les superpositions difficiles. À tester avant adoption. |
 | Maintien micro | Ajoute réellement 0–250 ms de retard au micro. Garder normalement 0. |
 | Estimation AEC | Indication de délai distincte, 0–500 ms. Commencer à 0 ; ce n'est pas un autre tampon. |
 
@@ -77,9 +77,9 @@ Le tampon ajoute 480 échantillons / 10 ms, plus le maintien, même en bypass. L
 
 ## Icône, sauvegarde et démarrage Windows
 
-Fermer la fenêtre pendant que l'audio fonctionne laisse le moteur actif dans la zone de notification. Double-cliquer sur l'icône personnalisée ou rouvrir **VoiceMeeter AEC.exe** restaure la fenêtre. Clic droit : AEC, Bypass, Silence, Auto, Diagnostic et Quitter. Les diagnostics restent en anglais. Le survol de l'icône montre le statut ; Windows peut la ranger parmi les icônes masquées.
+Fermer la fenêtre pendant que l’audio fonctionne laisse le moteur actif dans la zone de notification. Un clic gauche sur l’icône personnalisée ou la réouverture de **VoiceMeeter AEC.exe** restaure la fenêtre. Clic droit : AEC, Bypass, Silence, Auto, Diagnostic et Quitter. Les diagnostics restent en anglais. Le survol de l’icône montre le statut ; Windows peut la ranger parmi les icônes masquées.
 
-Les réglages sont enregistrés automatiquement. Après un essai réussi, choisir Auto ou le mode initial souhaité dans **Avancé**, puis activer **Démarrer avec Windows** si nécessaire. À la connexion, seule l'icône apparaît. Configurer séparément le démarrage de VoiceMeeter et la restauration des réglages 48 kHz et des retours Insert testés.
+Les réglages sont enregistrés automatiquement. Après un essai réussi, choisir Auto ou le mode initial souhaité dans **Avancé**, puis activer **Démarrer VoiceMeeter AEC à l’ouverture de ma session Windows** si nécessaire. L’option séparée **Démarrer automatiquement le moteur après l’ouverture de session** détermine si ce démarrage masqué attend aussi VoiceMeeter avant de lancer le moteur avec les réglages enregistrés. Configurer séparément le démarrage de VoiceMeeter et la restauration des réglages 48 kHz et des retours Insert testés.
 
 L'application attend VoiceMeeter jusqu'à 90 secondes et retente certains échecs initiaux toutes les cinq secondes. Une panne est signalée par l'icône. Elle ne redémarre pas indéfiniment : la reprise native après reset/stall reste limitée à deux essais. Un appel de pilote bloqué peut dépasser le délai d'attente.
 

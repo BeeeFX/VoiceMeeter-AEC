@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.3 — startup control and clearer defaults
+
+- Add a separate saved option to start echo cancellation automatically after Windows sign-in. The app waits for VoiceMeeter and uses the saved starting mode and settings.
+- Use Strong echo suppression as the default for new or missing settings while preserving every existing user’s saved choice.
+- Replace the update-available arrow with a Fluent icon aligned with the other sidebar navigation icons.
+
 ## 1.1.2 — clearer status and stopping
 
 - Highlight the active Auto, AEC, Bypass or Mute button and check the matching command in the notification menu.

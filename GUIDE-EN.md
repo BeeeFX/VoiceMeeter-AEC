@@ -1,6 +1,6 @@
 # VoiceMeeter AEC — Windows x64 setup
 
-[Français](GUIDE-FR.md) · Version 1.1.2 · Windows x64 · VoiceMeeter Banana or Potato
+[Français](GUIDE-FR.md) · Version 1.1.3 · Windows x64 · VoiceMeeter Banana or Potato
 
 VoiceMeeter AEC attenuates speaker playback picked up by a microphone. It processes the microphone through the matching **VoiceMeeter Banana or Potato Insert Virtual ASIO** driver, before VoiceMeeter strip effects. VoiceMeeter retains control of the hardware. The app does not change routes, patch settings or Windows default devices.
 
@@ -65,9 +65,9 @@ Tray AEC, Bypass and Mute override Auto; choose Auto again to resume. Live contr
 
 | Setting | Effect |
 |---|---|
-| Gentle | Default; preserves the previous release's less aggressive suppression. |
+| Gentle | Less aggressive suppression that best preserves near-end voice in synthetic tests. |
 | Balanced | A moderate increase; try first if Gentle leaves too much echo. |
-| Strong | Original upstream suppression; can heavily attenuate your voice in difficult overlap. Listen before adopting it. |
+| Strong | Default for new setups; original upstream suppression that can heavily attenuate your voice in difficult overlap. Listen before adopting it. |
 | Microphone hold | Adds real microphone delay, 0–250 ms. Normally leave at 0. |
 | AEC delay estimate | A separate timing hint, 0–500 ms. Start at 0; it is not another delay buffer. |
 
@@ -77,15 +77,15 @@ The host adds 480 samples / 10 ms of framing, plus hold, even in bypass. AEC add
 
 ## Tray, settings and Windows startup
 
-Closing the window while audio is running leaves the engine in the system tray. Double-click the custom tray icon or reopen **VoiceMeeter AEC.exe** to restore it. Right-click for AEC, Bypass, Mute, Auto, Diagnostics and Exit. Diagnostics are English in both languages. The icon tooltip shows status; Windows may place it under the hidden-icons arrow.
+Closing the window while audio is running leaves the engine in the notification area. Left-click the custom icon once or reopen **VoiceMeeter AEC.exe** to restore the window. Right-click for AEC, Bypass, Mute, Auto, Diagnostics and Exit. Diagnostics are English in both languages. The icon tooltip shows status; Windows may place it under the hidden-icons arrow.
 
-Settings save automatically. After testing, choose Auto or the desired starting mode under **Advanced**, then enable **Start with Windows** if wanted. At sign-in, only the tray icon appears. The app waits for VoiceMeeter and starts using saved settings. Configure VoiceMeeter separately to start and restore the tested 48 kHz configuration and insert routing.
+Settings save automatically. After testing, choose Auto or the desired starting mode under **Advanced**, then enable **Start VoiceMeeter AEC when I sign in to Windows** if wanted. Its separate **Start the engine automatically after sign-in** option controls whether the hidden startup also waits for VoiceMeeter and starts the engine with the saved settings. Configure VoiceMeeter separately to start and restore the tested 48 kHz configuration and insert routing.
 
 It waits up to 90 seconds for VoiceMeeter and retries selected initial driver failures at five-second intervals. Failure is reported through the tray. It does not endlessly restart after a crash; native driver reset/stall recovery stays limited to two attempts. A driver call that itself hangs may exceed the startup waiting deadline.
 
 Settings are in `%LOCALAPPDATA%\VoiceMeeterAEC\settings.json`: VoiceMeeter edition preference, selected columns, Auto scope, speaker bus, timing, starting mode, suppression and language. They save automatically. Changes that affect engine startup apply the next time the engine starts; disable PATCH INSERT, stop, and reopen it first.
 
-Startup uses the current user's Windows Run setting, with no administrator rights or service. Disable the option to remove it. After moving or upgrading the app, open the new copy once so the saved startup path can be refreshed.
+Startup uses the current user's Windows Run setting, with no administrator rights or service. Disable the main startup option to remove it. After moving or upgrading the app, open the new copy once so the saved startup path can be refreshed.
 
 Under **Advanced → Updates**, the app can check the latest stable GitHub release once a day or on demand. It only offers a newer version, asks before installation, verifies the Windows ZIP against its published SHA-256 file, closes briefly, replaces the portable files and reopens. If the engine was running, the updated app starts it again. Settings remain in local application data and are not replaced.
 
