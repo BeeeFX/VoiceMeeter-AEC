@@ -2,6 +2,8 @@ mod engine;
 mod validation;
 use engine::{Engine, ResidualSuppression};
 use std::ffi::c_void;
+use std::sync::atomic::{AtomicI32, Ordering};
+static EXIT_CODE: AtomicI32 = AtomicI32::new(1);
 unsafe extern "C" {
     fn asio_run(
         engine: *mut c_void,
@@ -50,16 +52,26 @@ unsafe extern "C" fn aec_block(
         *stats.add(1) = e.ref_peak;
         *stats.add(2) = if e.missing { 1. } else { 0. };
         *stats.add(3) = e.errors as f32;
+        *stats.add(4) = if e.failed { 1. } else { 0. };
     }
 }
 fn main() {
     if let Err(e) = cli() {
         eprintln!("Error: {e}");
-        std::process::exit(1);
+        std::process::exit(EXIT_CODE.load(Ordering::Relaxed));
     }
+}
+fn driver_error(code: i32) -> String {
+    EXIT_CODE.store(code, Ordering::Relaxed);
+    format!("driver stopped with code {code}; disable PATCH INSERT to restore the direct microphone")
 }
 fn cli() -> Result<(), String> {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    // Launcher regression fixture: exercise the real exit path without loading ASIO.
+    if args == ["--startup-failure-self-test"] {
+        println!("Auto strips mask: 0x20 -> A2; route state, not audio-level detection.");
+        return Err(driver_error(14));
+    }
     if args.is_empty() || args.iter().any(|x| x == "--help") {
         println!(
             "VoiceMeeter AEC — audio engine · 48 kHz\nNo arguments: no audio device is opened.\n\
@@ -135,7 +147,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
         (0, 0, 0, 3, false, 2);
     let mut auto_strips = None;
     let mut edition = Edition::Potato;
-    let mut suppression = ResidualSuppression::Gentle;
+    let mut suppression = ResidualSuppression::Balanced;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -257,9 +269,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
                 );
                 std::thread::sleep(std::time::Duration::from_millis(wait));
             } else {
-                return Err(format!(
-                    "driver stopped with code {c}; disable PATCH INSERT to restore the direct microphone"
-                ));
+                return Err(driver_error(c));
             }
         }
     }

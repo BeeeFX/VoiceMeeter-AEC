@@ -9,7 +9,7 @@
     <AssemblyName>VoiceMeeter AEC</AssemblyName>
     <RootNamespace>VoiceMeeterAEC</RootNamespace>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>1.1.3</Version>
+    <Version>1.2.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Authors>BeeeFX</Authors>
     <Product>VoiceMeeter AEC</Product>

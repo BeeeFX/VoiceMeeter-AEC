@@ -48,6 +48,7 @@ pub struct Engine {
     unmute: Ramp,
     pub frames: u64,
     pub errors: u64,
+    pub failed: bool,
     pub missing: bool,
     quiet_frames: usize,
     pub mic_peak: f32,
@@ -92,6 +93,7 @@ impl Engine {
             unmute: Ramp::new(1.),
             frames: 0,
             errors: 0,
+            failed: false,
             missing: false,
             quiet_frames: 0,
             mic_peak: 0.,
@@ -137,6 +139,7 @@ impl Engine {
                 self.errors += 1;
             }
             let failed = render.is_err() || capture.is_err();
+            self.failed = failed;
             if failed {
                 self.output.copy_from_slice(&self.mic);
             }

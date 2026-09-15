@@ -76,7 +76,7 @@ internal static class UpdateService
         }
     }
 
-    internal static void StartInstaller(string stagedPackage, bool restartEngine)
+    internal static void StartInstaller(string stagedPackage, string? resumeMode)
     {
         var processPath = Environment.ProcessPath ?? throw new InvalidOperationException("The application path is unavailable.");
         var installDirectory = Path.GetFullPath(AppContext.BaseDirectory);
@@ -101,7 +101,7 @@ internal static class UpdateService
         start.ArgumentList.Add(Path.GetFullPath(stagedPackage));
         start.ArgumentList.Add("--install-dir");
         start.ArgumentList.Add(installDirectory);
-        if (restartEngine) start.ArgumentList.Add("--restart-engine");
+        AddResumeArguments(start, resumeMode);
         Process.Start(start)?.Dispose();
     }
 
@@ -116,8 +116,7 @@ internal static class UpdateService
             var stagingDirectory = Path.GetFullPath(RequiredArgument(arguments, "--staging"));
             var installDirectory = Path.GetFullPath(RequiredArgument(arguments, "--install-dir"));
             RequireContainedPath(Path.Combine(AppSettings.DataDirectory, "updates"), stagingDirectory);
-            var restartEngine = arguments.Contains("--restart-engine");
-            ApplyUpdate(parentId, stagingDirectory, installDirectory, restartEngine);
+            ApplyUpdate(parentId, stagingDirectory, installDirectory, RestartModeFromArguments(arguments));
         }
         catch (Exception exception)
         {
@@ -137,6 +136,15 @@ internal static class UpdateService
 
     internal static void RunSelfTests()
     {
+        foreach (var mode in new[] { "auto", "aec", "bypass", "mute" })
+        {
+            var start = new ProcessStartInfo();
+            AddResumeArguments(start, mode);
+            if (RestartModeFromArguments(start.ArgumentList.ToArray()) != mode)
+                throw new InvalidOperationException("Updates must preserve every current engine mode.");
+        }
+        if (RestartModeFromArguments(["--restart-engine"]) != "mute" || RestartModeFromArguments([]) is not null)
+            throw new InvalidOperationException("Legacy update restart must be muted; stopped engines must stay stopped.");
         var hash = new string('a', 64);
         var json = $$"""
         {
@@ -305,7 +313,7 @@ internal static class UpdateService
         }
     }
 
-    private static void ApplyUpdate(int parentId, string stagingDirectory, string installDirectory, bool restartEngine)
+    private static void ApplyUpdate(int parentId, string stagingDirectory, string installDirectory, string? resumeMode)
     {
         RequirePackageFile(stagingDirectory, "VoiceMeeter AEC.exe");
         RequirePackageFile(stagingDirectory, "voicemeeter-aec.exe");
@@ -319,7 +327,7 @@ internal static class UpdateService
         RefreshInstalledVersion(installDirectory, installedApp);
         var start = new ProcessStartInfo { FileName = installedApp, UseShellExecute = true, WorkingDirectory = installDirectory };
         start.ArgumentList.Add("--after-update");
-        if (restartEngine) start.ArgumentList.Add("--restart-engine");
+        AddResumeArguments(start, resumeMode);
         Process.Start(start)?.Dispose();
     }
 
@@ -440,6 +448,24 @@ internal static class UpdateService
         if (index < 0 || index + 1 >= arguments.Length || string.IsNullOrWhiteSpace(arguments[index + 1]))
             throw new ArgumentException("Missing updater argument: " + name);
         return arguments[index + 1];
+    }
+
+    internal static string? RestartModeFromArguments(string[] arguments)
+    {
+        if (!arguments.Contains("--restart-engine")) return null;
+        // Older updaters did not preserve a mode. Resume muted in that case.
+        var mode = arguments.Contains("--resume-mode") ? RequiredArgument(arguments, "--resume-mode") : "mute";
+        if (mode is not ("auto" or "aec" or "bypass" or "mute")) throw new ArgumentException("Invalid resume mode.");
+        return mode;
+    }
+
+    internal static void AddResumeArguments(ProcessStartInfo start, string? mode)
+    {
+        if (mode is null) return;
+        if (mode is not ("auto" or "aec" or "bypass" or "mute")) throw new ArgumentException("Invalid resume mode.");
+        start.ArgumentList.Add("--restart-engine");
+        start.ArgumentList.Add("--resume-mode");
+        start.ArgumentList.Add(mode);
     }
 
     private static string ParseChecksum(string text)

@@ -13,6 +13,7 @@
 #include <conio.h>
 #include <chrono>
 #include <cstdint>
+#include <array>
 extern "C" void aec_block(void*,const float*,const float*,const float*,float*,size_t,int,float*);
 namespace {
 bool route_active(float route,float sm,float bm,float sg,float bg,float layer,bool anysolo,float solo){return route>0.5f&&sm<0.5f&&bm<0.5f&&sg>-60.f&&bg>-60.f&&layer>-60.f&&(!anysolo||solo>0.5f);}
@@ -26,10 +27,39 @@ bool ready=false;
 std::atomic<int> mode{0},fault{0};
 std::atomic<uint64_t> callbacks{0},overruns{0},max_us{0};
 std::atomic<float> micpeak{0},refpeak{0},missing{0},errors{0};
+std::atomic<float> dsp_failed{0};
+// The control thread publishes normalized weights. The callback never calls Remote.
+std::array<std::atomic<float>,34> published_weights{};
+std::atomic<unsigned> weights_version{0};
+std::array<float,34> current_weights{},target_weights{};
+int weight_ramp=0;
+int channel_strip(int c,int count){return count==22?(c<6?c/2:c<14?3:4):(c<10?c/2:c<18?5:c<26?6:7);}
+float finite_sample(float v){return std::isfinite(v)?std::clamp(v,-1.f,1.f):0.f;}
+std::array<float,34> normalized_weights(uint64_t left,uint64_t right,const std::array<float,34>& gains){
+ float l=0,r=0;std::array<float,34> result{};
+ for(int c=0;c<34;c++){
+  float gain=std::isfinite(gains[c])?std::max(0.f,gains[c]):0.f;
+  if(left&(uint64_t(1)<<c))l+=gain;
+  if(right&(uint64_t(1)<<c))r+=gain;
+  if((left|right)&(uint64_t(1)<<c))result[c]=gain;
+ }
+ // A common scale preserves stereo balance and relative strip levels.
+ float divisor=std::max(1.f,std::max(l,r));for(auto& gain:result)gain/=divisor;return result;
+}
+void publish_weights(const std::array<float,34>& weights){
+ weights_version.fetch_add(1);
+ for(int c=0;c<34;c++)published_weights[c].store(weights[c]);
+ weights_version.fetch_add(1);
+}
+void initialize_weights(){
+ std::array<float,34> unity;unity.fill(1.f);
+ current_weights=target_weights=normalized_weights(reference_left,reference_right,unity);
+ publish_weights(target_weights);weight_ramp=0;
+}
 std::atomic<bool> quitting{false}; std::atomic_flag busy=ATOMIC_FLAG_INIT;
 std::atomic<bool> latency_dirty{false};
 void reset_session_state(int initial){
- fault=0;quitting=false;callbacks=0;overruns=0;max_us=0;micpeak=0;refpeak=0;missing=0;errors=0;
+ fault=0;quitting=false;callbacks=0;overruns=0;max_us=0;micpeak=0;refpeak=0;missing=0;errors=0;dsp_failed=0;
  busy.clear();ready=false;latency_dirty=false;mode=initial==3?0:initial;
 }
 int completion_code(bool cancelled,int driver_fault){return cancelled?0:driver_fault?30+driver_fault:0;}
@@ -78,20 +108,28 @@ void process(long index,ASIOBool) {
  if(index<0||index>1){fault=1;return;}
  if(busy.test_and_set(std::memory_order_acquire)){fault=2;return;}
  auto begin=std::chrono::steady_clock::now();
+ // A bounded snapshot: if publication overlaps this callback, retain the last one.
+ auto version=weights_version.load();std::array<float,34> snapshot{};
+ if(!(version&1)){
+  for(int c=0;c<34;c++)snapshot[c]=published_weights[c].load();
+  if(version==weights_version.load()&&snapshot!=target_weights){target_weights=snapshot;weight_ramp=480;}
+ }
  for(int i=0;i<frames;i++){
   micdata[i]=read_sample(buffers[mic].buffers[index],i,formats[mic]);
   float mixed_left=0.f,mixed_right=0.f;
   for(int c=0;c<channels;c++){
-   if(reference_left&(uint64_t(1)<<c))mixed_left+=read_sample(buffers[c].buffers[index],i,formats[c]);
-   if(reference_right&(uint64_t(1)<<c))mixed_right+=read_sample(buffers[c].buffers[index],i,formats[c]);
+   if(weight_ramp)current_weights[c]+=(target_weights[c]-current_weights[c])/float(weight_ramp);
+   if(reference_left&(uint64_t(1)<<c))mixed_left+=finite_sample(read_sample(buffers[c].buffers[index],i,formats[c]))*current_weights[c];
+   if(reference_right&(uint64_t(1)<<c))mixed_right+=finite_sample(read_sample(buffers[c].buffers[index],i,formats[c]))*current_weights[c];
   }
+  if(weight_ramp)--weight_ramp;
   leftdata[i]=std::clamp(mixed_left,-1.f,1.f);
   rightdata[i]=std::clamp(mixed_right,-1.f,1.f);
  }
- float stats[4]{};
+ float stats[5]{};
  aec_block(engine,micdata.data(),leftdata.data(),rightdata.data(),clean.data(),size_t(frames),mode.load(),stats);
  transfer(index);if(ready && driver->outputReady()!=ASE_OK)fault=6;
- micpeak=stats[0];refpeak=stats[1];missing=stats[2];errors=stats[3];
+ micpeak=stats[0];refpeak=stats[1];missing=stats[2];errors=stats[3];dsp_failed=stats[4];
  auto us=uint64_t(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-begin).count());
  if(us>max_us.load())max_us=us;if(us*48000>uint64_t(frames)*1000000)overruns++;callbacks++;
  busy.clear(std::memory_order_release);
@@ -121,14 +159,30 @@ struct Remote {
   if(!login||!logout||!dirty||!get)return false;
   long result=login();logged=result>=0;return result==0;
  }
- int state(int strip,int bus){
+ int state(int strip,int bus,float* linear_gain=nullptr){
   if(!logged||!dirty||dirty()<0)return -1;
   char key[80];float route=0,sm=0,bm=0,sg=0,bg=0,solo=0,layer=0;bool anysolo=false;
   auto read=[&](const char* kind,int index,const char* field,float& out){std::snprintf(key,sizeof(key),"%s[%d].%s",kind,index,field);return get(key,&out)==0&&std::isfinite(out);};
   char routekey[8];std::snprintf(routekey,sizeof(routekey),"A%d",bus+1);
   if(!read("Strip",strip,routekey,route)||!read("Strip",strip,"Mute",sm)||!read("Bus",bus,"Mute",bm)||!read("Strip",strip,"Gain",sg)||!read("Bus",bus,"Gain",bg))return -1;
   for(int i=0;i<strips;i++){float s=0;if(!read("Strip",i,"Solo",s))return -1;if(s>0.5f)anysolo=true;if(i==strip)solo=s;}
-  char layerkey[32];std::snprintf(layerkey,sizeof(layerkey),"GainLayer[%d]",bus);if(!read("Strip",strip,layerkey,layer))return -1; return route_active(route,sm,bm,sg,bg,layer,anysolo,solo)?1:0;
+  // GainLayer is the selected bus's strip fader on Potato; Banana has only Gain.
+  if(strips==8){char layerkey[32];std::snprintf(layerkey,sizeof(layerkey),"GainLayer[%d]",bus);if(!read("Strip",strip,layerkey,layer))return -1;sg=layer;}
+  bool active=route_active(route,sm,bm,sg,bg,0,anysolo,solo);
+  if(linear_gain)*linear_gain=active?std::pow(10.f,std::clamp(sg+bg,-120.f,24.f)/20.f):0.f;
+  return active?1:0;
+ }
+ bool reference_weights(int bus){
+  std::array<float,34> gains{};std::array<float,8> strip_gains{};std::array<int,8> states{};states.fill(-2);bool known=true;
+  for(int c=0;c<channels;c++)if((reference_left|reference_right)&(uint64_t(1)<<c)){
+   int strip=channel_strip(c,channels);
+   if(states[strip]==-2)states[strip]=state(strip,bus,&strip_gains[strip]);
+   if(states[strip]<0)known=false;
+   gains[c]=strip_gains[strip];
+  }
+  // Do not silently discard echo sources when routing is unavailable.
+  if(!known)gains.fill(1.f);
+  publish_weights(normalized_weights(reference_left,reference_right,gains));return known;
  }
  int state_mask(int mask,int bus){
   int result=0;
@@ -137,6 +191,31 @@ struct Remote {
  }
  ~Remote(){if(logged&&logout)logout();if(dll)FreeLibrary(dll);}
 };
+// Deterministic Remote fixture; no DLL is loaded and no mixer settings are changed.
+bool test_potato=false,test_mute=false,test_layer_read=false;
+long __stdcall test_dirty(){return 0;}
+long __stdcall test_get(char* key,float* out){
+ *out=0;
+ if(std::strstr(key,"GainLayer")){test_layer_read=true;if(!test_potato)return -1;*out=-6.f;}
+ else if(std::strstr(key,".Gain"))*out=std::strncmp(key,"Strip",5)==0?-12.f:0.f;
+ else if(std::strstr(key,".A2"))*out=1.f;
+ else if(std::strstr(key,".Mute"))*out=test_mute?1.f:0.f;
+ return 0;
+}
+bool reference_selftest(){
+ for(int strips:{5,8}){
+  Remote remote(strips);remote.logged=true;remote.dirty=test_dirty;remote.get=test_get;
+  test_potato=strips==8;test_mute=false;test_layer_read=false;float gain=0;
+  if(remote.state(1,1,&gain)!=1||std::abs(gain-std::pow(10.f,(test_potato?-6.f:-12.f)/20.f))>0.0001f||test_layer_read!=test_potato)return false;
+  test_mute=true;if(remote.state(1,1,&gain)!=0||gain!=0)return false;
+ }
+ std::array<float,34> gains{};gains[10]=gains[11]=4.f;gains[18]=gains[19]=2.f;
+ auto weights=normalized_weights((uint64_t(1)<<10)|(uint64_t(1)<<18),(uint64_t(1)<<11)|(uint64_t(1)<<19),gains);
+ if(std::abs(weights[10]-2.f/3.f)>0.0001f||std::abs(weights[18]-1.f/3.f)>0.0001f||weights[0]!=0)return false;
+ for(float level:{-1.f,-0.8f,0.f,0.8f,1.f})if(std::abs((weights[10]+weights[18])*level-level)>0.0001f)return false;
+ if(channel_strip(6,22)!=3||channel_strip(14,22)!=4||channel_strip(10,34)!=5||channel_strip(26,34)!=7)return false;
+ return true;
+}
 }
 extern "C" int asio_run(void* ctx,int m,uint64_t ref_left,uint64_t ref_right,uint64_t ret,int initial,int seconds,int probe,int auto_mask,int auto_bus,int edition,int* final_mode){
  setvbuf(stdout,nullptr,_IONBF,0);
@@ -174,7 +253,9 @@ extern "C" int asio_run(void* ctx,int m,uint64_t ref_left,uint64_t ref_right,uin
   if(probe)break;
   if(!ctx||m<0||m>=channels||ref_left==0||ref_right==0||((ref_left|ref_right|ret)>>channels)!=0||auto_mask<0||(auto_mask>>strip_count)!=0||auto_bus<0||auto_bus>=bus_count){result=18;break;}
   engine=ctx;mic=m;reference_left=ref_left;reference_right=ref_right;returns=ret;mode=initial==3?0:initial;
+  initialize_weights();
   if(auto_mask>0&&!remote.open()){std::fprintf(stderr,"Remote API unavailable: Auto cannot read routing; Auto mode keeps AEC on.\n");if(automatic)mode=0;}
+  bool reference_known=remote.reference_weights(auto_bus);
   micdata.resize(frames);leftdata.resize(frames);rightdata.resize(frames);clean.resize(frames);buffers.resize(channels*2);
   for(long c=0;c<channels*2;c++){buffers[c]={};buffers[c].isInput=c<channels?ASIOTrue:ASIOFalse;buffers[c].channelNum=c%channels;}
   ASIOCallbacks cb{process,rate_changed,message,process_time};
@@ -185,7 +266,7 @@ extern "C" int asio_run(void* ctx,int m,uint64_t ref_left,uint64_t ref_right,uin
   ready=driver->outputReady()==ASE_OK;SetConsoleCtrlHandler(ctrl,TRUE);
   if(!ok(driver->start(),"start")){result=20;break;}started=true;
   std::puts("Running. A=AEC B=bypass M=mute T=auto Q=quit. Disable PATCH INSERT before Q.");
-  auto begin=std::chrono::steady_clock::now(),last=begin,lastauto=begin;uint64_t previous=0;int laststate=-2;
+  auto begin=std::chrono::steady_clock::now(),last=begin,lastauto=begin,laststatus=begin;uint64_t previous=0;int laststate=-2;
   while(!quitting&&!fault){
    if(latency_dirty.exchange(false)){
     long newin=0,newout=0;
@@ -195,10 +276,18 @@ extern "C" int asio_run(void* ctx,int m,uint64_t ref_left,uint64_t ref_right,uin
    apply_control(read_control(),automatic,auto_mask,laststate);
    if(quitting)break;
    auto now=std::chrono::steady_clock::now();
-   if(automatic&&now-lastauto>=std::chrono::milliseconds(200)){
-    int state=remote.state_mask(auto_mask,auto_bus);mode=state==0?1:0;
-    if(state!=laststate)std::printf("Auto strips mask 0x%02x -> A%d : %s\n",auto_mask,auto_bus+1,state<0?"read unavailable, AEC on":state?"AEC on":"bypass");
-    laststate=state;lastauto=now;
+   if(now-lastauto>=std::chrono::milliseconds(200)){
+    reference_known=remote.reference_weights(auto_bus);
+    if(automatic){
+     int state=remote.state_mask(auto_mask,auto_bus);mode=state==0?1:0;
+     if(state!=laststate)std::printf("Auto strips mask 0x%02x -> A%d : %s\n",auto_mask,auto_bus+1,state<0?"read unavailable, AEC on":state?"AEC on":"bypass");
+     laststate=state;
+    }
+    lastauto=now;
+   }
+   if(now-laststatus>=std::chrono::milliseconds(100)){
+    std::printf("status mode=%d auto=%d route_unknown=%d ref_route_unknown=%d mic=%.6f ref=%.6f ref_missing=%d dsp_failed=%d blocks=%llu\n",mode.load(),int(automatic),int(automatic&&laststate<0),int(!reference_known),micpeak.load(),refpeak.load(),int(missing.load()),int(dsp_failed.load()),callbacks.load());
+    laststatus=now;
    }
    if(seconds>0&&now-begin>=std::chrono::seconds(seconds))break;
    if(now-last>=std::chrono::seconds(2)){
@@ -215,6 +304,8 @@ extern "C" int asio_run(void* ctx,int m,uint64_t ref_left,uint64_t ref_right,uin
  SetConsoleCtrlHandler(ctrl,FALSE);CoUninitialize();std::puts("Closed. If the strip is silent, disable its PATCH INSERT.");return result;
 }
 extern "C" int asio_transport_test(){
+ if(!reference_selftest())return 11;
+ std::puts("Reference mix: Banana/Potato route gains, mutes, stereo balance and normalized headroom PASS.");
  if(combine_route_states(0,0)!=0||combine_route_states(0,1)!=1||combine_route_states(-1,0)!=-1||combine_route_states(-1,1)!=1||combine_route_states(1,-1)!=1)return 10;
  if(completion_code(true,4)!=0||completion_code(true,5)!=0||completion_code(false,4)!=34)return 8;
  reset_session_state(2);
@@ -256,6 +347,7 @@ extern "C" int asio_control_selftest(){
 // Exercises the real native callback and Rust FFI without opening any driver.
 extern "C" int asio_callback_selftest(void* ctx){
  reset_session_state(1);engine=ctx;channels=34;frames=192;mic=0;reference_left=(uint64_t(1)<<10)|(uint64_t(1)<<18);reference_right=(uint64_t(1)<<11)|(uint64_t(1)<<19);returns=3;
+ initialize_weights();
  formats.assign(34,ASIOSTFloat32LSB);buffers.assign(68,{});
  micdata.assign(frames,0);leftdata.assign(frames,0);rightdata.assign(frames,0);clean.assign(frames,0);
  std::vector<std::vector<float>> data(136,std::vector<float>(frames));
@@ -272,7 +364,14 @@ extern "C" int asio_callback_selftest(void* ctx){
   }
  }
  if(callbacks.load()!=300||fault.load()!=0)return 3;
- if(std::abs(refpeak.load()-0.32f)>0.0001f)return 5;
+ if(std::abs(refpeak.load()-0.16f)>0.0001f)return 5;
+ // Full-scale simultaneous references remain linear instead of hard-clipping.
+ for(int c:{10,11,18,19})std::fill(data[c*2].begin(),data[c*2].end(),0.8f);
+ process(0,ASIOTrue);
+ for(int i=0;i<frames;i++)if(std::abs(leftdata[i]-0.8f)>0.0001f||std::abs(rightdata[i]-0.8f)>0.0001f)return 6;
+ std::array<float,34> silent{};publish_weights(silent);
+ for(int b=0;b<4;b++)process(0,ASIOTrue);
+ for(int i=0;i<frames;i++)if(std::abs(leftdata[i])>0.00001f||std::abs(rightdata[i])>0.00001f)return 7;
  process(2,ASIOTrue);if(fault.load()!=1)return 4;
  std::puts("Full callback/FFI: framing, 34-channel preservation, immediate mute and invalid-index detection PASS.");
  return 0;

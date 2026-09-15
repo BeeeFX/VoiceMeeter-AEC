@@ -62,10 +62,12 @@ The app intentionally reads VoiceMeeter routing without changing it. This protec
 | Microphone source | Banana IN1–IN3 or Potato IN1–IN5, left or right |
 | Playback reference | One or more strips; VAIO and AUX are common choices, plus VAIO3 on Potato |
 | AEC modes | Auto, always on, bypass, mute |
-| Suppression | Strong by default for new setups; Gentle and Balanced remain available |
+| Suppression | Balanced by default for new setups; Gentle and Strong remain available |
 | Startup | Optional Windows sign-in launch, with a separate automatic engine-start toggle |
 
 The reference must contain all audio played by your speakers and exclude the microphone. Select every relevant playback column; the engine combines their stereo pairs before AEC processing. See [Reference setup](GUIDE-EN.md#reference-the-sound-to-cancel) for details.
+
+The reference mix follows the selected speaker bus's routing, mutes and levels, with headroom to avoid clipping multiple sources. Live meters and status messages show whether audio is flowing, Auto is cancelling or bypassing, or routing/reference information is unavailable. Audio settings stay locked while the engine runs so the setup guide matches the active connection.
 
 ## Validation status
 

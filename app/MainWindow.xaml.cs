@@ -48,12 +48,33 @@ public partial class MainWindow : Window
     private string _updateState = "idle";
     private int _updateProgress;
     private bool _updateBusy;
+    private bool _applyingUpdate;
+    private string _balloonPage = "diagnostics";
     private string UiLanguage => _settings.Language;
     private MixerLayout _layout;
     private string?[] _stripLabels;
 
     private static readonly Dictionary<string, string> French = new()
     {
+        ["Auto · cancelling"] = "Auto · annulation",
+        ["Auto · bypass"] = "Auto · bypass",
+        ["Auto · routing unavailable"] = "Auto · routage indisponible",
+        ["No reference · bypass"] = "Sans référence · bypass",
+        ["DSP error · bypass"] = "Erreur audio · bypass",
+        ["Microphone"] = "Microphone",
+        ["Speaker reference"] = "Référence haut-parleurs",
+        ["Stop the engine before changing audio settings."] = "Arrêtez le moteur avant de modifier les réglages audio.",
+        ["Processing failed. The microphone is passing through. Open Diagnostics."] = "Le traitement a échoué. Le microphone passe sans traitement. Ouvrez Diagnostic.",
+        ["No speaker reference detected. The microphone is passing through."] = "Aucune référence détectée. Le microphone passe sans traitement.",
+        ["Routing is unavailable. Auto keeps AEC enabled."] = "Routage indisponible. Auto maintient l’AEC activé.",
+        ["Reference routing is unavailable. Using all selected sources at equal levels."] = "Routage de référence indisponible. Toutes les sources sélectionnées sont utilisées à niveau égal.",
+        ["Waiting for audio…"] = "En attente du signal audio…",
+        ["Reconnecting to VoiceMeeter…"] = "Reconnexion à VoiceMeeter…",
+        ["Start the engine to check audio levels."] = "Démarrez le moteur pour vérifier les niveaux audio.",
+        ["Audio is flowing. Verify PATCH INSERT using the setup guide."] = "Le signal audio circule. Vérifiez PATCH INSERT à l’aide du guide.",
+        ["Balanced (recommended)"] = "Équilibré (recommandé)",
+        ["Balanced protects your voice while reducing echo. Strong can suppress wanted sound."] = "Équilibré préserve votre voix tout en réduisant l’écho. Fort peut supprimer des sons utiles.",
+        ["The speaker bus controls Auto and the reference mix. Selected sources follow its routes, mutes and levels."] = "Le bus haut-parleurs contrôle Auto et le mix de référence. Les sources sélectionnées suivent son routage, ses mutes et ses niveaux.",
         ["Setup"] = "Configuration",
         ["Setup guide"] = "Guide de configuration",
         ["Advanced"] = "Avancé",
@@ -394,7 +415,7 @@ public partial class MainWindow : Window
         if (_settings.AutoStrips.Count == 0) _settings.AutoStrips.AddRange(_settings.ReferenceStrips);
         _settings.WatchAllStrips = WatchAllBox.IsChecked == true;
         _settings.MicrophoneSide = SelectedTag(MicSideBox, "left");
-        _settings.Suppression = SelectedTag(SuppressionBox, "strong");
+        _settings.Suppression = SelectedTag(SuppressionBox, "balanced");
         _settings.StartMode = SelectedTag(StartModeBox, "auto");
         _settings.HoldMs = (int)Math.Round(HoldSlider.Value);
         _settings.DelayMs = (int)Math.Round(DelaySlider.Value);
@@ -589,7 +610,7 @@ public partial class MainWindow : Window
         GuideStep1Heading.Text = T("1  Prepare VoiceMeeter");
         GuideStep1Text.Text = string.Format(T("Open VoiceMeeter {0} and confirm the sample rate is 48 kHz. Keep PATCH INSERT off while choosing settings."), _layout.DisplayName);
         GuideStep2Heading.Text = T("2  Match the three columns");
-        GuideStep2Text.Text = T("Playback columns provide the audio reference AEC removes from your mic. The A bus is only the route Auto watches to decide when AEC should be active.");
+        GuideStep2Text.Text = T("The speaker bus controls Auto and the reference mix. Selected sources follow its routes, mutes and levels.");
         GuideReferenceRule.Text = T("Reference rule: include all speaker audio and exclude your microphone.");
         GuideStep3Heading.Text = T("3  Start and verify");
         GuideStep3Text.Text = T("Start echo cancellation. In Diagnostics, confirm 48 kHz and that audio blocks keep advancing before you connect the return.");
@@ -599,7 +620,7 @@ public partial class MainWindow : Window
         GuideStopRule.Text = T("Before stopping the engine, switch those two PATCH INSERT buttons off.");
         BehaviourHeading.Text = T("Behaviour");
         SuppressionLabel.Text = T("Echo suppression");
-        SuppressionHelp.Text = T("Strong removes the most echo, but may affect your voice.");
+        SuppressionHelp.Text = T("Balanced protects your voice while reducing echo. Strong can suppress wanted sound.");
         StartModeLabel.Text = T("Mode when the app starts");
         StartModeHelp.Text = T("Auto is recommended for everyday use.");
         MicSideLabel.Text = T("Microphone side");
@@ -622,6 +643,9 @@ public partial class MainWindow : Window
         AutomaticUpdatesHelp.Text = T("Checks GitHub Releases once a day. Installation always asks first.");
         RefreshUpdateText();
         DiagnosticsHelp.Text = T("Technical activity from the audio engine. Useful when setup is not working.");
+        MicrophoneMeterLabel.Text = T("Microphone");
+        ReferenceMeterLabel.Text = T("Speaker reference");
+        AudioSettingsLockText.Text = T("Stop the engine before changing audio settings.");
         UnsavedText.Text = T("Settings saved automatically");
         EngineButton.Content = _engine.Alive ? T("Stop engine") : T("Start echo cancellation");
         AutoModeButton.Content = "Auto";
@@ -638,7 +662,7 @@ public partial class MainWindow : Window
 
     private void SetComboLabels()
     {
-        var suppression = new Dictionary<string, string> { ["gentle"] = T("Gentle"), ["balanced"] = T("Balanced"), ["strong"] = T("Strong") };
+        var suppression = new Dictionary<string, string> { ["gentle"] = T("Gentle"), ["balanced"] = T("Balanced (recommended)"), ["strong"] = T("Strong") };
         foreach (ComboBoxItem item in SuppressionBox.Items) item.Content = suppression[item.Tag!.ToString()!];
         var modes = new Dictionary<string, string> { ["bypass"] = "Bypass", ["aec"] = T("AEC always on"), ["auto"] = T("Auto (recommended)"), ["mute"] = T("Mute microphone") };
         foreach (ComboBoxItem item in StartModeBox.Items) item.Content = modes[item.Tag!.ToString()!];
@@ -652,22 +676,22 @@ public partial class MainWindow : Window
 
     private void ConfigureEngineEvents()
     {
-        _engine.StatusChanged += status => Dispatcher.Invoke(() =>
+        _engine.StatusChanged += status => Dispatcher.BeginInvoke(() =>
         {
             UpdateStatusVisual(status);
-            if (_startupPending && status is ("running" or "auto" or "aec" or "bypass" or "mute"))
+            if (_startupPending && _engine.EverRunning)
             {
                 _startupPending = false;
                 _startupTimer?.Stop();
             }
         });
-        _engine.DiagnosticsChanged += () => Dispatcher.Invoke(() => DiagnosticsBox.Text = _engine.Diagnostics);
-        _engine.Exited += code => Dispatcher.Invoke(() =>
+        _engine.DiagnosticsChanged += () => Dispatcher.BeginInvoke(() => DiagnosticsBox.Text = _engine.Diagnostics);
+        _engine.Exited += code => Dispatcher.BeginInvoke(() =>
         {
             _stopConfirmation?.TrySetResult(false);
             EngineButton.Content = T("Start echo cancellation");
             SetModeButtons(false);
-            if (_startupPending && !_engine.EverRunning && code is 13 or 14 or 20 or 35 && DateTime.Now < _startupDeadline)
+            if (EngineHost.ShouldRetryStartup(_startupPending, _engine.EverRunning, code, _startupDeadline))
                 return;
             if (code != 0)
             {
@@ -679,7 +703,10 @@ public partial class MainWindow : Window
                     System.Windows.MessageBox.Show(this, T("The audio engine stopped. Open Diagnostics for details."), "VoiceMeeter AEC", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
                 else
+                {
+                    _balloonPage = "diagnostics";
                     _tray?.ShowBalloonTip(5000, "VoiceMeeter AEC", T("The audio engine stopped. Open Diagnostics for details."), WinForms.ToolTipIcon.Warning);
+                }
             }
         });
     }
@@ -703,7 +730,11 @@ public partial class MainWindow : Window
             {
                 if (eventArgs.Button == WinForms.MouseButtons.Left) Dispatcher.Invoke(ShowWindow);
             };
-            _tray.BalloonTipClicked += (_, _) => Dispatcher.Invoke(ShowUpdates);
+            _tray.BalloonTipClicked += (_, _) => Dispatcher.Invoke(() =>
+            {
+                if (_balloonPage == "advanced") ShowUpdates();
+                else { ShowWindow(); ShowPage(_balloonPage); }
+            });
         }
         var menu = new WinForms.ContextMenuStrip();
         menu.Items.Add(T("Show VoiceMeeter AEC"), null, (_, _) => Dispatcher.Invoke(ShowWindow));
@@ -734,7 +765,11 @@ public partial class MainWindow : Window
         {
             "starting" => (T("Starting…"), "#D18B20"),
             "running" => (T("Running"), "#18A67E"),
-            "auto" => (T("Auto active"), "#18A67E"),
+            "auto" => (T("Auto · cancelling"), "#18A67E"),
+            "auto-bypass" => (T("Auto · bypass"), "#D18B20"),
+            "auto-unavailable" => (T("Auto · routing unavailable"), "#D18B20"),
+            "auto-missing" or "aec-missing" => (T("No reference · bypass"), "#D18B20"),
+            "auto-error" or "aec-error" => (T("DSP error · bypass"), "#E05858"),
             "aec" => (T("AEC active"), "#18A67E"),
             "bypass" => (T("Bypass active"), "#D18B20"),
             "mute" => (T("Microphone muted"), "#E05858"),
@@ -746,6 +781,19 @@ public partial class MainWindow : Window
         StatusDot.Fill = (Brush)new BrushConverter().ConvertFromString(color)!;
         UpdateModeSelection(status);
         UpdateStatusIcon(status);
+        MicrophoneMeter.Value = MeterValue(_engine.MicrophonePeak);
+        ReferenceMeter.Value = MeterValue(_engine.ReferencePeak);
+        AudioHealthText.Text = status switch
+        {
+            "auto-error" or "aec-error" => T("Processing failed. The microphone is passing through. Open Diagnostics."),
+            "auto-missing" or "aec-missing" => T("No speaker reference detected. The microphone is passing through."),
+            "auto-unavailable" => T("Routing is unavailable. Auto keeps AEC enabled."),
+            _ when _engine.ReferenceRoutingUnavailable => T("Reference routing is unavailable. Using all selected sources at equal levels."),
+            "starting" => T("Waiting for audio…"),
+            "reconnecting" => T("Reconnecting to VoiceMeeter…"),
+            "ready" or "stopped" => T("Start the engine to check audio levels."),
+            _ => T("Audio is flowing. Verify PATCH INSERT using the setup guide.")
+        };
         if (_tray is not null) _tray.Text = ("VoiceMeeter AEC · " + text)[..Math.Min(63, ("VoiceMeeter AEC · " + text).Length)];
     }
 
@@ -759,7 +807,7 @@ public partial class MainWindow : Window
         foreach (var pair in _trayModeItems)
         {
             pair.Value.Checked = pair.Key == activeMode;
-            pair.Value.Enabled = activeMode is not null;
+            pair.Value.Enabled = activeMode is not null && !_applyingUpdate;
         }
     }
 
@@ -767,6 +815,8 @@ public partial class MainWindow : Window
     {
         "running" => startMode,
         "auto" or "aec" or "bypass" or "mute" => status,
+        "auto-bypass" or "auto-unavailable" or "auto-missing" or "auto-error" => "auto",
+        "aec-missing" or "aec-error" => "aec",
         _ => null
     };
 
@@ -777,6 +827,8 @@ public partial class MainWindow : Window
         var badgeColor = status switch
         {
             "auto" => "#20C5C7",
+            "auto-bypass" or "auto-unavailable" or "auto-missing" or "aec-missing" => "#D18B20",
+            "auto-error" or "aec-error" => "#E05858",
             "aec" or "running" => "#18A67E",
             "bypass" or "starting" or "reconnecting" => "#D18B20",
             "mute" => "#E05858",
@@ -820,6 +872,7 @@ public partial class MainWindow : Window
         if (_arguments.Contains("--with-labels")) LoadVoiceMeeterLabels();
         if (_arguments.Contains("--check-ui"))
         {
+            await EngineHost.RunSelfTestsAsync(Path.Combine(AppContext.BaseDirectory, "voicemeeter-aec.exe"));
             ValidateUiMappings();
             _allowClose = true;
             Close();
@@ -864,7 +917,7 @@ public partial class MainWindow : Window
         else
         {
             LoadVoiceMeeterLabels();
-            if (_arguments.Contains("--restart-engine")) StartEngine(true);
+            if (UpdateService.RestartModeFromArguments(_arguments) is { } resumeMode) StartEngine(true, resumeMode);
         }
 
         _ = Task.Run(UpdateService.CleanupOldUpdateFiles);
@@ -953,7 +1006,7 @@ public partial class MainWindow : Window
         if (!upgraded.ReferenceStrips.SequenceEqual([7]) || !multiple.ReferenceStrips.SequenceEqual([6, 7]) ||
             !upgraded.CheckForUpdatesAutomatically || updatesDisabled.CheckForUpdatesAutomatically ||
             upgraded.VoiceMeeterEdition != "auto" || bananaSettings.VoiceMeeterEdition != "banana" ||
-            defaults.Suppression != "strong" || !defaults.StartEngineWithWindows || startupEngineDisabled.StartEngineWithWindows)
+            defaults.Suppression != "balanced" || !defaults.StartEngineWithWindows || startupEngineDisabled.StartEngineWithWindows)
             throw new InvalidOperationException("Saved settings migration is invalid.");
         StartupBox.IsChecked = false;
         UpdateStartupControls();
@@ -986,6 +1039,11 @@ public partial class MainWindow : Window
             ["mute"] = MuteModeButton
         };
         SetModeButtons(true);
+        if (MicStripPanel.IsEnabled || ReferenceStripPanel.IsEnabled || BusPanel.IsEnabled ||
+            AutoStripPanel.IsEnabled || SuppressionBox.IsEnabled || MicSideBox.IsEnabled || HoldSlider.IsEnabled || DelaySlider.IsEnabled)
+            throw new InvalidOperationException("Audio settings must stay locked while the engine is running.");
+        if (!BuildEngineArguments("mute").Contains("--mute") || _settings.StartMode != "auto")
+            throw new InvalidOperationException("Update resume mode must not change the saved startup mode.");
         foreach (var mode in modeButtons.Keys)
         {
             UpdateStatusVisual(mode);
@@ -993,10 +1051,20 @@ public partial class MainWindow : Window
                 !Equals(modeButtons[mode].Tag, "active"))
                 throw new InvalidOperationException($"The {mode} mode button was not selected correctly.");
         }
+        foreach (var state in new[] { "auto-bypass", "auto-unavailable", "auto-missing", "auto-error", "aec-missing", "aec-error" })
+        {
+            UpdateStatusVisual(state);
+            var selected = state.StartsWith("auto-") ? AutoModeButton : AecModeButton;
+            if (!Equals(selected.Tag, "active") || string.IsNullOrWhiteSpace(AudioHealthText.Text))
+                throw new InvalidOperationException("Fallback status lost its selected mode or explanation.");
+        }
         UpdateStatusVisual("stopped");
         if (modeButtons.Any(pair => pair.Value.Tag is not null))
             throw new InvalidOperationException("A mode button remains selected while the engine is stopped.");
         SetModeButtons(false);
+        if (!MicStripPanel.IsEnabled || !ReferenceStripPanel.IsEnabled || !SuppressionBox.IsEnabled ||
+            AudioSettingsLockText.Visibility != Visibility.Collapsed)
+            throw new InvalidOperationException("Audio settings must unlock after stopping.");
         if (string.IsNullOrWhiteSpace(StopDialogTitle.Text) || string.IsNullOrWhiteSpace(StopDialogText.Text) ||
             StopDialogCancelButton.Content is null || StopDialogConfirmButton.Content is null)
             throw new InvalidOperationException("The integrated stop confirmation is incomplete.");
@@ -1072,7 +1140,10 @@ public partial class MainWindow : Window
             _updateState = release is null ? "current" : "available";
             QueueSave();
             if (release is not null && _tray is not null)
+            {
+                _balloonPage = "advanced";
                 _tray.ShowBalloonTip(7000, "VoiceMeeter AEC", string.Format(T("Version {0} is available."), release.VersionText), WinForms.ToolTipIcon.Info);
+            }
         }
         catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested) { }
         catch (Exception exception)
@@ -1105,7 +1176,8 @@ public partial class MainWindow : Window
             T("Install update"), MessageBoxButton.OKCancel, MessageBoxImage.Information);
         if (answer != MessageBoxResult.OK) return;
 
-        var engineWasRunning = _engine.Alive;
+        var engineWasRunning = false;
+        string? resumeMode = null;
         _updateBusy = true;
         _updateProgress = 0;
         _updateState = "downloading";
@@ -1120,10 +1192,15 @@ public partial class MainWindow : Window
             var stagedPackage = await UpdateService.DownloadAndStageAsync(release, progress, _lifetimeCancellation.Token);
             _updateState = "preparing";
             RefreshUpdateText();
+            _applyingUpdate = true;
+            EngineButton.IsEnabled = false;
+            engineWasRunning = _engine.Alive;
+            resumeMode = engineWasRunning ? _engine.CurrentMode : null;
+            SetModeButtons(false);
             if (engineWasRunning && !await StopEngine(false))
                 throw new InvalidOperationException("The audio engine did not stop in time.");
             SaveSettingsNow();
-            UpdateService.StartInstaller(stagedPackage, engineWasRunning);
+            UpdateService.StartInstaller(stagedPackage, resumeMode);
             _allowClose = true;
             Close();
             Application.Current.Shutdown();
@@ -1135,11 +1212,14 @@ public partial class MainWindow : Window
             DiagnosticsBox.Text += Environment.NewLine + "Update install: " + exception;
             System.Windows.MessageBox.Show(this, T("The update could not be installed.") + "\n\n" + exception.Message,
                 "VoiceMeeter AEC", MessageBoxButton.OK, MessageBoxImage.Error);
-            if (engineWasRunning && !_engine.Alive) StartEngine(true);
+            if (engineWasRunning && !_engine.Alive) StartEngine(true, resumeMode);
         }
         finally
         {
             _updateBusy = false;
+            _applyingUpdate = false;
+            EngineButton.IsEnabled = true;
+            SetModeButtons(_engine.Alive);
             RefreshUpdateText();
         }
     }
@@ -1175,6 +1255,7 @@ public partial class MainWindow : Window
             _startupPending = false;
             _startupTimer?.Stop();
             UpdateStatusVisual("stopped");
+            _balloonPage = "setup";
             _tray?.ShowBalloonTip(5000, "VoiceMeeter AEC", string.Format(T("Please start VoiceMeeter {0} first, then try again."), _settings.VoiceMeeterEdition == "auto" ? "Banana or Potato" : _layout.DisplayName), WinForms.ToolTipIcon.Warning);
             return;
         }
@@ -1185,7 +1266,7 @@ public partial class MainWindow : Window
         StartEngine(true);
     }
 
-    private List<string> BuildEngineArguments()
+    private List<string> BuildEngineArguments(string? resumeMode = null)
     {
         SyncSettingsFromControls();
         var start = _layout.StripStarts[_settings.MicrophoneStrip - 1];
@@ -1200,12 +1281,12 @@ public partial class MainWindow : Window
             "--delay-ms", _settings.DelayMs.ToString(), "--auto-strips",
             _settings.WatchAllStrips ? "all" : string.Join(',', _settings.AutoStrips),
             "--auto-bus", _settings.SpeakerBus.ToString(), "--suppression", _settings.Suppression,
-            "--" + _settings.StartMode
+            "--" + (resumeMode ?? _settings.StartMode)
         };
         return result;
     }
 
-    private void StartEngine(bool quiet = false)
+    private void StartEngine(bool quiet = false, string? resumeMode = null)
     {
         try
         {
@@ -1213,7 +1294,7 @@ public partial class MainWindow : Window
                 ChangeLayout(detected);
             SaveSettingsNow();
             var enginePath = Path.Combine(AppContext.BaseDirectory, "voicemeeter-aec.exe");
-            _engine.Start(enginePath, BuildEngineArguments(), AppSettings.LogPath);
+            _engine.Start(enginePath, BuildEngineArguments(resumeMode), AppSettings.LogPath);
             EngineButton.Content = T("Stop engine");
             SetModeButtons(true);
         }
@@ -1267,6 +1348,7 @@ public partial class MainWindow : Window
 
     private async void Engine_Click(object sender, RoutedEventArgs e)
     {
+        if (_applyingUpdate) return;
         if (_engine.Alive)
         {
             if (await StopEngine(true))
@@ -1280,19 +1362,27 @@ public partial class MainWindow : Window
 
     private void SetModeButtons(bool enabled)
     {
-        AutoModeButton.IsEnabled = enabled;
-        AecModeButton.IsEnabled = enabled;
-        BypassModeButton.IsEnabled = enabled;
-        MuteModeButton.IsEnabled = enabled;
-        EditionBox.IsEnabled = !enabled;
+        AutoModeButton.IsEnabled = enabled && !_applyingUpdate;
+        AecModeButton.IsEnabled = enabled && !_applyingUpdate;
+        BypassModeButton.IsEnabled = enabled && !_applyingUpdate;
+        MuteModeButton.IsEnabled = enabled && !_applyingUpdate;
+        var editable = !enabled && !_applyingUpdate;
+        foreach (var control in new System.Windows.UIElement[] { EditionBox, MicStripPanel, ReferenceStripPanel,
+                     BusPanel, AutoStripPanel, WatchAllBox, MicSideBox, SuppressionBox, HoldSlider, DelaySlider })
+            control.IsEnabled = editable;
+        AudioSettingsLockText.Visibility = editable ? Visibility.Collapsed : Visibility.Visible;
         if (!enabled) UpdateModeSelection("stopped");
     }
 
     private void SetMode(char command)
     {
+        if (_applyingUpdate) return;
         try { _engine.Send(command); }
         catch (Exception exception) { DiagnosticsBox.Text += Environment.NewLine + exception; ShowPage("diagnostics"); }
     }
+
+    private static double MeterValue(float peak) => peak > 0 && float.IsFinite(peak)
+        ? Math.Clamp((20 * Math.Log10(peak) + 60) / 60 * 100, 0, 100) : 0;
 
     private void AutoMode_Click(object sender, RoutedEventArgs e) => SetMode('t');
     private void AecMode_Click(object sender, RoutedEventArgs e) => SetMode('a');
@@ -1339,6 +1429,7 @@ public partial class MainWindow : Window
 
     private async void ExitApplication()
     {
+        if (_applyingUpdate) return;
         if (!await StopEngine(true)) return;
         SaveSettingsNow();
         _allowClose = true;
@@ -1349,6 +1440,7 @@ public partial class MainWindow : Window
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         if (_allowClose) return;
+        if (_applyingUpdate) { e.Cancel = true; return; }
         if (_engine.Alive)
         {
             e.Cancel = true;

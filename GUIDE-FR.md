@@ -1,6 +1,6 @@
 # VoiceMeeter AEC — configuration Windows x64
 
-[English](GUIDE-EN.md) · Version 1.1.3 · Windows x64 · VoiceMeeter Banana ou Potato
+[English](GUIDE-EN.md) · Version 1.2.0 · Windows x64 · VoiceMeeter Banana ou Potato
 
 VoiceMeeter AEC atténue les sons des enceintes repris par le micro. Il utilise le pilote **VoiceMeeter Banana ou Potato Insert Virtual ASIO** correspondant, avant les effets de piste. VoiceMeeter garde le contrôle du matériel. L'application ne modifie ni les routes, ni les PATCH INSERT, ni les périphériques Windows par défaut.
 
@@ -23,6 +23,8 @@ La référence doit contenir tous les sons dont on veut retirer l'écho, et excl
 Si toute la lecture passe par **VAIO**, sélectionner uniquement VAIO. Si le son des enceintes est réparti entre VAIO, AUX, des entrées matérielles ou VAIO3 sur Potato, sélectionner chaque colonne concernée. Les sources lues directement hors de VoiceMeeter ne peuvent pas être incluses. Seule la première paire gauche/droite de chaque piste virtuelle est utilisée ; les canaux surround supplémentaires ne le sont pas.
 
 L'Insert fournit un signal avant effets et fader, pas le mix final du bus. Des effets différents, de la saturation ou des changements brusques de volume peuvent réduire l'annulation.
+
+La version 1.2.0 pondère les sources sélectionnées selon le routage, les mutes, les solos et les niveaux du bus haut-parleurs, même en AEC manuel. Banana utilise le gain de piste ; Potato utilise GainLayer pour le bus choisi. Une normalisation commune évite la saturation du mix de référence et les changements de pondération suivent un fondu de 10 ms. Le routage est lu toutes les 200 ms. S'il est indisponible, les sources sélectionnées sont mélangées à niveau égal avec normalisation et un avertissement apparaît. L'EQ, le panoramique, le downmix surround et la distorsion des enceintes restent hors de ce modèle.
 
 ## Canaux et Auto
 
@@ -66,8 +68,8 @@ AEC manuel, Bypass et Silence remplacent Auto jusqu'à ce qu'on le sélectionne 
 | Réglage | Effet |
 |---|---|
 | Douce | Suppression moins agressive qui préserve le mieux la voix proche dans les tests synthétiques. |
-| Équilibrée | Renforcement modéré ; à essayer d'abord si Douce laisse trop d'écho. |
-| Forte | Réglage par défaut des nouvelles configurations ; suppression d’origine qui peut fortement atténuer la voix pendant les superpositions difficiles. À tester avant adoption. |
+| Équilibrée | Réglage recommandé par défaut ; suppression modérée qui préserve mieux les sons utiles. |
+| Forte | Suppression d’origine optionnelle qui peut fortement atténuer la voix pendant les superpositions difficiles. À tester avant adoption. |
 | Maintien micro | Ajoute réellement 0–250 ms de retard au micro. Garder normalement 0. |
 | Estimation AEC | Indication de délai distincte, 0–500 ms. Commencer à 0 ; ce n'est pas un autre tampon. |
 
@@ -85,9 +87,13 @@ L'application attend VoiceMeeter jusqu'à 90 secondes et retente certains échec
 
 Les réglages sont dans `%LOCALAPPDATA%\VoiceMeeterAEC\settings.json` : édition VoiceMeeter, colonnes choisies, surveillance Auto, bus des enceintes, délais, mode, suppression et langue. Ils sont enregistrés automatiquement. Les changements liés au démarrage s'appliquent au prochain lancement du moteur ; désactiver PATCH INSERT, arrêter, puis relancer.
 
+Les sélecteurs audio, la suppression et les délais sont verrouillés pendant le fonctionnement. Les boutons de mode restent immédiats. Les niveaux micro/référence et l'état sont visibles sur chaque page : annulation Auto, bypass Auto, référence absente ou erreur de traitement. Le moteur actif ne prouve pas que PATCH INSERT est connecté : suivre le test Silence du guide.
+
 Le démarrage utilise le réglage Windows Run de l'utilisateur, sans droits administrateur ni service. Désactiver l'option pour le retirer. Après déplacement ou mise à jour, ouvrir une fois la nouvelle copie pour actualiser son chemin de démarrage.
 
 Dans **Avancé → Mises à jour**, l'application peut rechercher la dernière version stable sur GitHub une fois par jour ou à la demande. Elle propose uniquement une version plus récente, demande confirmation avant l'installation, vérifie le ZIP Windows avec sa somme SHA-256 publiée, se ferme brièvement, remplace les fichiers portables puis se rouvre. Si le moteur fonctionnait, l'application mise à jour le redémarre. Les réglages restent dans les données locales et ne sont pas remplacés.
+
+Les mises à jour lancées depuis 1.2.0 conservent le mode actif, y compris Silence, sans modifier le mode de démarrage enregistré. Une ancienne version qui ne transmet pas ce mode redémarre en Silence : choisir Auto ou AEC après réouverture. Les profils de suppression déjà enregistrés sont conservés.
 
 Pour désinstaller : désactiver le démarrage et enregistrer, désactiver PATCH INSERT, quitter par l'icône, puis retirer le dossier. Les réglages/journaux locaux peuvent être retirés séparément. Les journaux contiennent du texte, jamais d'audio ; rotation à environ 2 Mio plus un segment précédent.
 

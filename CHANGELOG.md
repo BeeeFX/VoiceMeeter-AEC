@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.0 — reliable startup, safer updates and clearer audio feedback
+
+- Default new and missing suppression settings to Balanced; preserve explicitly saved profiles. Strong remains optional and fails three synthetic near-end preservation checks.
+- Preserve the current Auto/AEC/Bypass/Mute mode through updates and failed-update recovery, without changing the saved startup mode. Older updaters that cannot supply a mode resume muted.
+- Confirm startup only after audio callbacks arrive and preserve native driver exit codes so transient sign-in failures can retry.
+- Read Banana routes without Potato-only GainLayer parameters. Match selected reference sources to the speaker bus's routes, mute/solo state and fader levels in every mode.
+- Normalize the reference mix before summation to preserve stereo balance and headroom; smooth weight changes over 10 ms. If routing is unavailable, use a normalized equal-level reference and show a warning.
+- Show live microphone/reference meters and distinguish Auto cancellation, Auto bypass, unavailable routing, absent reference and DSP fallback.
+- Lock audio configuration while running so the selected microphone and PATCH INSERT guide match the active engine. Keep the existing window dimensions.
+- Send engine-warning notification clicks to Diagnostics and rotate text logs at 2 MiB with one previous segment. Meter telemetry is not stored in the log.
+- Add driver-free regression checks for startup failure/retry, control commands, update mode transfer, log rotation, reference headroom, Banana/Potato routing and UI status/settings locks. Real-room and recorded-speech validation remain outstanding.
+
 ## 1.1.3 — startup control and clearer defaults
 
 - Add a separate saved option to start echo cancellation automatically after Windows sign-in. The app waits for VoiceMeeter and uses the saved starting mode and settings.

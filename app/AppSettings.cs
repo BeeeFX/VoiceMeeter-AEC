@@ -24,7 +24,7 @@ public sealed class AppSettings
     public List<int> AutoStrips { get; set; } = [6];
     public bool WatchAllStrips { get; set; }
     public string StartMode { get; set; } = "auto";
-    public string Suppression { get; set; } = "strong";
+    public string Suppression { get; set; } = "balanced";
     public int HoldMs { get; set; }
     public int DelayMs { get; set; }
     public bool StartWithWindows { get; set; }
@@ -102,7 +102,7 @@ public sealed class AppSettings
             AutoStrips = strips,
             WatchAllStrips = ReadInt(root, "autoScope", 0) == 1,
             StartMode = mode switch { 0 => "bypass", 1 => "aec", 3 => "mute", _ => "auto" },
-            Suppression = ReadString(root, "suppression", "strong"),
+            Suppression = ReadString(root, "suppression", "balanced"),
             HoldMs = ReadInt(root, "hold", 0),
             DelayMs = ReadInt(root, "delay", 0),
             StartWithWindows = legacyStartupExists,
@@ -144,7 +144,7 @@ public sealed class AppSettings
         AutoStrips = (AutoStrips ?? []).Where(value => value is >= 1 and <= 8).Distinct().Order().ToList();
         if (AutoStrips.Count == 0) AutoStrips.AddRange(ReferenceStrips);
         if (StartMode is not ("bypass" or "aec" or "auto" or "mute")) StartMode = "auto";
-        if (Suppression is not ("gentle" or "balanced" or "strong")) Suppression = "strong";
+        if (Suppression is not ("gentle" or "balanced" or "strong")) Suppression = "balanced";
         HoldMs = Math.Clamp(HoldMs, 0, 250);
         DelayMs = Math.Clamp(DelayMs, 0, 500);
         if (LastUpdateCheckUtc > DateTime.UtcNow.AddDays(1)) LastUpdateCheckUtc = default;

@@ -1,6 +1,6 @@
 # VoiceMeeter AEC — Windows x64 setup
 
-[Français](GUIDE-FR.md) · Version 1.1.3 · Windows x64 · VoiceMeeter Banana or Potato
+[Français](GUIDE-FR.md) · Version 1.2.0 · Windows x64 · VoiceMeeter Banana or Potato
 
 VoiceMeeter AEC attenuates speaker playback picked up by a microphone. It processes the microphone through the matching **VoiceMeeter Banana or Potato Insert Virtual ASIO** driver, before VoiceMeeter strip effects. VoiceMeeter retains control of the hardware. The app does not change routes, patch settings or Windows default devices.
 
@@ -23,6 +23,8 @@ The reference must contain every playback source whose acoustic echo should be r
 For a simple configuration where all playback passes through **VAIO**, select only VAIO. If speaker audio is split across VAIO, AUX, hardware strips, or VAIO3 on Potato, select every relevant column. Sources played directly outside VoiceMeeter cannot be included. Only the first left/right pair of each virtual strip is used; additional surround channels are not included.
 
 The Insert signal is before effects and faders, not the final output-bus mix. Different effects, clipping or abrupt volume changes between reference and speakers can reduce cancellation.
+
+Version 1.2.0 reads the selected speaker bus's route, mute/solo state and fader gains and weights each selected source accordingly, even in manual AEC mode. Banana uses its strip gain; Potato uses the selected bus's GainLayer. A shared normalization factor prevents multiple sources from clipping the reference, and weight changes fade over 10 ms. Routing is polled every 200 ms. Unavailable routing uses a normalized equal-level mix of the selected sources and shows a warning. This still cannot reproduce downstream EQ, panning, surround downmixing or speaker distortion; verify the actual listening path.
 
 ## Channel map and Auto
 
@@ -66,8 +68,8 @@ Tray AEC, Bypass and Mute override Auto; choose Auto again to resume. Live contr
 | Setting | Effect |
 |---|---|
 | Gentle | Less aggressive suppression that best preserves near-end voice in synthetic tests. |
-| Balanced | A moderate increase; try first if Gentle leaves too much echo. |
-| Strong | Default for new setups; original upstream suppression that can heavily attenuate your voice in difficult overlap. Listen before adopting it. |
+| Balanced | Recommended default for new setups; moderate suppression with better preservation of wanted sound. |
+| Strong | Optional original upstream suppression that can heavily attenuate your voice in difficult overlap. Listen before adopting it. |
 | Microphone hold | Adds real microphone delay, 0–250 ms. Normally leave at 0. |
 | AEC delay estimate | A separate timing hint, 0–500 ms. Start at 0; it is not another delay buffer. |
 
@@ -85,9 +87,13 @@ It waits up to 90 seconds for VoiceMeeter and retries selected initial driver fa
 
 Settings are in `%LOCALAPPDATA%\VoiceMeeterAEC\settings.json`: VoiceMeeter edition preference, selected columns, Auto scope, speaker bus, timing, starting mode, suppression and language. They save automatically. Changes that affect engine startup apply the next time the engine starts; disable PATCH INSERT, stop, and reopen it first.
 
+Audio selectors, suppression and timing are locked while running. The startup-mode setting applies to the next normal launch; the live mode buttons apply immediately. Microphone/reference meters and status messages are visible on every page. Auto distinguishes cancellation from bypass, and missing reference or DSP failure is shown as microphone passthrough. A running engine does not prove that PATCH INSERT is enabled: follow the guide's Mute test.
+
 Startup uses the current user's Windows Run setting, with no administrator rights or service. Disable the main startup option to remove it. After moving or upgrading the app, open the new copy once so the saved startup path can be refreshed.
 
 Under **Advanced → Updates**, the app can check the latest stable GitHub release once a day or on demand. It only offers a newer version, asks before installation, verifies the Windows ZIP against its published SHA-256 file, closes briefly, replaces the portable files and reopens. If the engine was running, the updated app starts it again. Settings remain in local application data and are not replaced.
+
+Updates started from 1.2.0 preserve the current mode, including Mute, without changing the saved startup mode. Updating from an older version that cannot supply its current mode restarts muted; choose Auto or AEC explicitly after reopening. Existing saved suppression choices are preserved.
 
 To remove the app: disable startup and save, disable PATCH INSERT, exit from the tray, then remove its folder. Local settings/logs can be removed separately. Diagnostics are text only, never audio; rotation is approximately 2 MiB plus one previous segment.
 
