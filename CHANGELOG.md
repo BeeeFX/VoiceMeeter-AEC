@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.2 — keep the app available after closing
+
+- Make the window’s close button hide VoiceMeeter AEC in the notification area whether the audio engine is running or stopped.
+- Keep the tray icon and background app available for reopening with one left click. Exit remains an explicit tray-menu action.
+- Add a desktop regression check for the close-to-notification-area policy.
+
 ## 1.2.1 — restore Strong as the default
 
 - Restore Strong as the default for new, missing or invalid suppression settings and CLI streams. Preserve explicitly saved Gentle, Balanced and Strong choices.

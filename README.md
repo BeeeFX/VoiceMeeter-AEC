@@ -36,7 +36,7 @@ The app detects the running VoiceMeeter edition and shows only its real mixer la
 3. Open **Setup guide** inside the app, then follow its PATCH INSERT and verification steps.
 4. Select **Start echo cancellation**. Auto mode enables AEC when the chosen playback route is active and bypasses it when that route is inactive.
 
-Your normal controls remain available from the window and the system tray: **Auto, AEC on, Bypass, and Mute**. Settings save automatically. Under **Advanced**, Windows startup and automatic engine startup are separate options. The app can also check the latest stable GitHub release at most once a day and asks before installing anything.
+Your normal controls remain available from the window and the system tray: **Auto, AEC on, Bypass, and Mute**. Closing the window keeps the app in the notification area; left-click its icon to reopen it or use its menu to exit. Settings save automatically. Under **Advanced**, Windows startup and automatic engine startup are separate options. The app can also check the latest stable GitHub release at most once a day and asks before installing anything.
 
 | Banana layout | Integrated setup guide |
 |:---:|:---:|

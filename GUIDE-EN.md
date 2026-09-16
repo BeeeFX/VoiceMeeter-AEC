@@ -1,6 +1,6 @@
 # VoiceMeeter AEC — Windows x64 setup
 
-[Français](GUIDE-FR.md) · Version 1.2.1 · Windows x64 · VoiceMeeter Banana or Potato
+[Français](GUIDE-FR.md) · Version 1.2.2 · Windows x64 · VoiceMeeter Banana or Potato
 
 VoiceMeeter AEC attenuates speaker playback picked up by a microphone. It processes the microphone through the matching **VoiceMeeter Banana or Potato Insert Virtual ASIO** driver, before VoiceMeeter strip effects. VoiceMeeter retains control of the hardware. The app does not change routes, patch settings or Windows default devices.
 
@@ -79,7 +79,7 @@ The host adds 480 samples / 10 ms of framing, plus hold, even in bypass. AEC add
 
 ## Tray, settings and Windows startup
 
-Closing the window while audio is running leaves the engine in the notification area. Left-click the custom icon once or reopen **VoiceMeeter AEC.exe** to restore the window. Right-click for AEC, Bypass, Mute, Auto, Diagnostics and Exit. Diagnostics are English in both languages. The icon tooltip shows status; Windows may place it under the hidden-icons arrow.
+Closing the window always keeps VoiceMeeter AEC running in the notification area, whether the audio engine is active or stopped. Left-click the custom icon once or reopen **VoiceMeeter AEC.exe** to restore the window. Right-click for AEC, Bypass, Mute, Auto, Diagnostics and Exit. Use **Exit** there to close the app completely. Diagnostics are English in both languages. The icon tooltip shows status; Windows may place it under the hidden-icons arrow.
 
 Settings save automatically. After testing, choose Auto or the desired starting mode under **Advanced**, then enable **Start VoiceMeeter AEC when I sign in to Windows** if wanted. Its separate **Start the engine automatically after sign-in** option controls whether the hidden startup also waits for VoiceMeeter and starts the engine with the saved settings. Configure VoiceMeeter separately to start and restore the tested 48 kHz configuration and insert routing.
 

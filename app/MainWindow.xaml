@@ -293,7 +293,7 @@
                 <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <StackPanel Margin="0,0,24,0">
                   <TextBlock x:Name="UpdatesHeading" Text="Updates" FontSize="16" FontWeight="SemiBold" />
-                  <TextBlock x:Name="UpdateStatusText" Text="Current version 1.2.1" Foreground="{DynamicResource MutedInk}" Margin="0,5,0,11" TextWrapping="Wrap" />
+                  <TextBlock x:Name="UpdateStatusText" Text="Current version 1.2.2" Foreground="{DynamicResource MutedInk}" Margin="0,5,0,11" TextWrapping="Wrap" />
                   <CheckBox x:Name="AutomaticUpdatesBox" Content="Check for updates automatically" Checked="SettingChanged" Unchecked="SettingChanged" />
                   <TextBlock x:Name="AutomaticUpdatesHelp" Text="Checks GitHub Releases once a day. Installation always asks first." Foreground="{DynamicResource MutedInk}" Margin="25,5,0,0" TextWrapping="Wrap" />
                 </StackPanel>

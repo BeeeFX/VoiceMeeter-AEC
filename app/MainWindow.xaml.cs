@@ -1082,6 +1082,8 @@ public partial class MainWindow : Window
         if (GuideView.Visibility != Visibility.Visible || string.IsNullOrWhiteSpace(GuideStep4Text.Text))
             throw new InvalidOperationException("The integrated setup guide is incomplete.");
         ShowPage("setup");
+        if (!ShouldHideOnClose(false) || ShouldHideOnClose(true))
+            throw new InvalidOperationException("The window-close policy does not preserve the background app.");
     }
 
     private void SavePreview(string path)
@@ -1439,25 +1441,15 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        if (_allowClose) return;
-        if (_applyingUpdate) { e.Cancel = true; return; }
-        if (_engine.Alive)
-        {
-            e.Cancel = true;
-            _stopConfirmation?.TrySetResult(false);
-            Hide();
-            return;
-        }
+        if (!ShouldHideOnClose(_allowClose)) return;
+        e.Cancel = true;
+        if (_applyingUpdate) return;
+        _stopConfirmation?.TrySetResult(false);
         SaveSettingsNow();
-        _allowClose = true;
-        _tray?.Dispose();
-        _statusIcon?.Dispose();
-        _icon?.Dispose();
-        _showTimer.Stop();
-        _saveTimer.Stop();
-        _engine.Dispose();
-        Application.Current.Shutdown();
+        Hide();
     }
+
+    private static bool ShouldHideOnClose(bool allowClose) => !allowClose;
 
     protected override void OnClosed(EventArgs e)
     {

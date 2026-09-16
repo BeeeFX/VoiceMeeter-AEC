@@ -1,6 +1,6 @@
-# VoiceMeeter AEC 1.2.1 — validation
+# VoiceMeeter AEC 1.2.2 — validation
 
-[English](VALIDATION-EN.md) · Version 1.2.1
+[English](VALIDATION-EN.md) · Version 1.2.2
 
 Les contrôles passent pour Douce et Équilibrée. **Forte expose la suppression d'origine, plus agressive, et échoue à certains critères de préservation du signal proche.** Des tests synthétiques réussis ne prouvent ni une voix transparente ni une stabilité de production.
 

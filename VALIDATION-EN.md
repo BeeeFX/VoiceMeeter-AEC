@@ -1,6 +1,6 @@
-# VoiceMeeter AEC 1.2.1 — validation
+# VoiceMeeter AEC 1.2.2 — validation
 
-[Français](VALIDATION.md) · Version 1.2.1
+[Français](VALIDATION.md) · Version 1.2.2
 
 The automated checks pass for Gentle and Balanced. **Strong deliberately exposes the original, more aggressive suppressor and fails some near-end preservation checks.** Passing synthetic tests does not establish transparent speech or production stability.
 
@@ -11,7 +11,7 @@ The automated checks pass for Gentle and Balanced. **Strong deliberately exposes
 - The real C++ callback calls the Rust engine through FFI for 300 simulated blocks; framing, immediate mute, channel preservation and invalid-index detection pass.
 - Native event checks cover reset, sample-rate change, latency-only notification, cancellation priority and aggregation of active/inactive/unknown Auto routes.
 - A hidden child process receives M/B/A/T/Q through the same anonymous stdin pipe used by the tray. It verifies the actual native control handling, returns diagnostic output and exits gracefully without opening an audio device.
-- English/French desktop checks cover both mixer layouts and channel maps, edition selection, Auto/Strong defaults, settings migration, mode highlighting, locked audio controls, theme resources, update metadata/checksums, safe archive paths and copy rollback.
+- English/French desktop checks cover both mixer layouts and channel maps, edition selection, Auto/Strong defaults, settings migration, mode highlighting, locked audio controls, persistent notification-area closing, theme resources, update metadata/checksums, safe archive paths and copy rollback.
 - New host checks feed actual status records through the parser, reject pre-callback startup messages, exercise native exit code 14 and retry eligibility through a real child process, verify latest requested mode preservation, and rotate small test logs without touching user logs/settings.
 - Update argument round trips preserve all four modes; old updater arguments resume muted. Native reference checks cover Banana without GainLayer, Potato bus gains, muted routes, relative weights, channel mapping, simultaneous loud sources and a smooth transition to zero reference.
 - Release builds remap local compiler paths; public archives are checked for developer account paths, saved settings, shortcuts, logs and build directories.
@@ -40,7 +40,7 @@ Driver reset/resync or a two-second callback stall permits two retries (250 ms, 
 
 Sign-in startup waits for VoiceMeeter and retries selected initial driver failures for up to 90 seconds. This is separate from native recovery. Settings and shortcut tests use an isolated directory; the development machine's startup registration is not modified. The process wrapper uses CreateNoWindow and redirected stdin/stdout/stderr. Normal startup has no console; a direct CLI launch retains one. Diagnostics rotate at approximately 2 MiB plus one previous segment and contain no recorded audio.
 
-The 1.2.1 build and desktop checks open no audio driver and do not change Windows startup registration. Meter telemetry is emitted every 100 ms and excluded from disk logs. Route weights are polled every 200 ms and faded over 10 ms inside the callback using a bounded atomic snapshot. The speaker-reference mix follows routing and gains; downstream EQ, panning, surround downmix and nonlinear speaker effects are not reconstructed. These integration checks do not constitute live acoustic validation of the new reference weighting.
+The 1.2.2 build and desktop checks open no audio driver and do not change Windows startup registration. Meter telemetry is emitted every 100 ms and excluded from disk logs. Route weights are polled every 200 ms and faded over 10 ms inside the callback using a bounded atomic snapshot. The speaker-reference mix follows routing and gains; downstream EQ, panning, surround downmix and nonlinear speaker effects are not reconstructed. These integration checks do not constitute live acoustic validation of the new reference weighting.
 
 ## Remaining real-world validation
 

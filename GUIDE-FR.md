@@ -1,6 +1,6 @@
 # VoiceMeeter AEC — configuration Windows x64
 
-[English](GUIDE-EN.md) · Version 1.2.1 · Windows x64 · VoiceMeeter Banana ou Potato
+[English](GUIDE-EN.md) · Version 1.2.2 · Windows x64 · VoiceMeeter Banana ou Potato
 
 VoiceMeeter AEC atténue les sons des enceintes repris par le micro. Il utilise le pilote **VoiceMeeter Banana ou Potato Insert Virtual ASIO** correspondant, avant les effets de piste. VoiceMeeter garde le contrôle du matériel. L'application ne modifie ni les routes, ni les PATCH INSERT, ni les périphériques Windows par défaut.
 
@@ -79,7 +79,7 @@ Le tampon ajoute 480 échantillons / 10 ms, plus le maintien, même en bypass. L
 
 ## Icône, sauvegarde et démarrage Windows
 
-Fermer la fenêtre pendant que l’audio fonctionne laisse le moteur actif dans la zone de notification. Un clic gauche sur l’icône personnalisée ou la réouverture de **VoiceMeeter AEC.exe** restaure la fenêtre. Clic droit : AEC, Bypass, Silence, Auto, Diagnostic et Quitter. Les diagnostics restent en anglais. Le survol de l’icône montre le statut ; Windows peut la ranger parmi les icônes masquées.
+Fermer la fenêtre laisse toujours VoiceMeeter AEC actif dans la zone de notification, que le moteur audio fonctionne ou soit arrêté. Un clic gauche sur l’icône personnalisée ou la réouverture de **VoiceMeeter AEC.exe** restaure la fenêtre. Clic droit : AEC, Bypass, Silence, Auto, Diagnostic et Quitter. Utiliser **Quitter** dans ce menu pour fermer complètement l’application. Les diagnostics restent en anglais. Le survol de l’icône montre le statut ; Windows peut la ranger parmi les icônes masquées.
 
 Les réglages sont enregistrés automatiquement. Après un essai réussi, choisir Auto ou le mode initial souhaité dans **Avancé**, puis activer **Démarrer VoiceMeeter AEC à l’ouverture de ma session Windows** si nécessaire. L’option séparée **Démarrer automatiquement le moteur après l’ouverture de session** détermine si ce démarrage masqué attend aussi VoiceMeeter avant de lancer le moteur avec les réglages enregistrés. Configurer séparément le démarrage de VoiceMeeter et la restauration des réglages 48 kHz et des retours Insert testés.
 
