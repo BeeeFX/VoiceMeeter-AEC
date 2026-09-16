@@ -6,7 +6,6 @@ use std::sync::atomic::{AtomicI32, Ordering};
 static EXIT_CODE: AtomicI32 = AtomicI32::new(1);
 unsafe extern "C" {
     fn asio_run(
-        engine: *mut c_void,
         mic: i32,
         reference_left_mask: u64,
         reference_right_mask: u64,
@@ -17,12 +16,38 @@ unsafe extern "C" {
         auto_mask: i32,
         auto_bus: i32,
         edition: i32,
+        delay_ms: i32,
+        hold_ms: i32,
+        suppression: i32,
+        allow_44100_resampling: i32,
         final_mode: *mut i32,
     ) -> i32;
     fn asio_transport_test() -> i32;
     fn asio_callback_selftest(engine: *mut c_void) -> i32;
     fn remote_check() -> i32;
     fn asio_control_selftest() -> i32;
+}
+#[unsafe(no_mangle)]
+unsafe extern "C" fn aec_create(
+    sample_rate: i32,
+    delay_ms: i32,
+    hold_ms: i32,
+    suppression: i32,
+) -> *mut c_void {
+    let profile = match suppression {
+        1 => ResidualSuppression::Balanced,
+        2 => ResidualSuppression::Gentle,
+        _ => ResidualSuppression::Standard,
+    };
+    Engine::with_sample_rate(delay_ms, hold_ms.max(0) as usize, profile, sample_rate.max(0) as usize)
+        .map(|engine| Box::into_raw(Box::new(engine)).cast())
+        .unwrap_or(std::ptr::null_mut())
+}
+#[unsafe(no_mangle)]
+unsafe extern "C" fn aec_destroy(ctx: *mut c_void) {
+    if !ctx.is_null() {
+        drop(unsafe { Box::from_raw(ctx.cast::<Engine>()) });
+    }
 }
 #[unsafe(no_mangle)]
 unsafe extern "C" fn aec_block(
@@ -74,10 +99,10 @@ fn cli() -> Result<(), String> {
     }
     if args.is_empty() || args.iter().any(|x| x == "--help") {
         println!(
-            "VoiceMeeter AEC — audio engine · 48 kHz\nNo arguments: no audio device is opened.\n\
+            "VoiceMeeter AEC — audio engine · native 48 kHz; optional 44.1 kHz compatibility\nNo arguments: no audio device is opened.\n\
 --self-test : synthetic validation without a driver\n--probe [--edition banana|potato] : query an Insert driver without streaming\n\
 --run --edition banana|potato --mic 1 --ref 7,8[,15,16...] --returns 1,2 [--bypass] [--mute] [--auto]\n\
-  [--delay-ms 0] [--hold-ms 0] [--suppression gentle|balanced|strong] [--seconds 60] [--auto-strips 6,7,8|all --auto-bus 2]\n\
+  [--delay-ms 0] [--hold-ms 0] [--suppression gentle|balanced|strong] [--allow-44100-resampling] [--seconds 60] [--auto-strips 6,7,8|all --auto-bus 2]\n\
 Default mode: Auto, the edition's VAIO strip to A2. --aec selects manual AEC.\n\
 Banana has 22 channels, 5 strips and A1..A3; Potato has 34 channels, 8 strips and A1..A5.\n\
 Keys: A=AEC B=bypass M=mute T=auto Q=quit.\n\
@@ -122,7 +147,6 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
         };
         let c = unsafe {
             asio_run(
-                std::ptr::null_mut(),
                 0,
                 0,
                 0,
@@ -133,6 +157,10 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
                 0,
                 1,
                 edition.native_code(),
+                0,
+                0,
+                0,
+                0,
                 std::ptr::null_mut(),
             )
         };
@@ -148,6 +176,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
     let mut auto_strips = None;
     let mut edition = Edition::Potato;
     let mut suppression = ResidualSuppression::Standard;
+    let mut allow_44100_resampling = false;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -156,6 +185,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
             "--mute" => mode = 2,
             "--auto" => mode = 3,
             "--aec" => mode = 0,
+            "--allow-44100-resampling" => allow_44100_resampling = true,
             "--mic" | "--ref" | "--returns" | "--delay-ms" | "--hold-ms" | "--seconds"
             | "--suppression" | "--auto-strip" | "--auto-strips" | "--auto-bus" | "--edition" => {
                 let key = &args[i];
@@ -234,7 +264,6 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
     let started = std::time::Instant::now();
     let mut recovery = Recovery::default();
     loop {
-        let mut e = Engine::with_suppression(delay, hold as usize, suppression);
         let remaining = if seconds == 0 {
             0
         } else {
@@ -245,7 +274,6 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
         }
         let c = unsafe {
             asio_run(
-                &mut e as *mut Engine as *mut c_void,
                 mic - 1,
                 reference_left_mask,
                 reference_right_mask,
@@ -256,6 +284,10 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
                 auto_mask,
                 auto_bus - 1,
                 edition.native_code(),
+                delay,
+                hold,
+                suppression_code(suppression),
+                i32::from(allow_44100_resampling),
                 &mut mode,
             )
         };
@@ -385,6 +417,14 @@ fn parse_suppression(value: &str) -> Result<ResidualSuppression, String> {
         "balanced" => Ok(ResidualSuppression::Balanced),
         "strong" => Ok(ResidualSuppression::Standard),
         _ => Err("suppression must be gentle, balanced or strong".into()),
+    }
+}
+
+fn suppression_code(value: ResidualSuppression) -> i32 {
+    match value {
+        ResidualSuppression::Balanced => 1,
+        ResidualSuppression::Gentle => 2,
+        ResidualSuppression::Standard => 0,
     }
 }
 

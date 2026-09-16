@@ -54,7 +54,7 @@
             <ComboBoxItem Content="English" Tag="en" />
             <ComboBoxItem Content="Français" Tag="fr" />
           </ComboBox>
-          <TextBlock x:Name="EditionFooter" Text="Independent project · Banana / Potato · 48 kHz" Foreground="{DynamicResource SubtleInk}" FontSize="10" Margin="0,16,0,0" />
+          <TextBlock x:Name="EditionFooter" Text="Independent project · Banana / Potato · 48 kHz native" Foreground="{DynamicResource SubtleInk}" FontSize="10" Margin="0,16,0,0" />
         </StackPanel>
       </Grid>
     </Border>
@@ -177,7 +177,7 @@
             <Border Style="{StaticResource Card}" Margin="0,0,0,16">
               <StackPanel>
                 <TextBlock x:Name="GuideStep1Heading" Text="1  Prepare VoiceMeeter" FontSize="16" FontWeight="SemiBold" />
-                <TextBlock x:Name="GuideStep1Text" Text="Open VoiceMeeter Potato and confirm the sample rate is 48 kHz. Keep PATCH INSERT off while choosing settings." Foreground="{DynamicResource MutedInk}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                <TextBlock x:Name="GuideStep1Text" Text="Open VoiceMeeter Potato. Use 48 kHz when possible; 44.1 kHz requires compatibility resampling under Advanced. Keep PATCH INSERT off while choosing settings." Foreground="{DynamicResource MutedInk}" TextWrapping="Wrap" Margin="0,6,0,0" />
               </StackPanel>
             </Border>
 
@@ -194,7 +194,7 @@
             <Border Style="{StaticResource Card}" Margin="0,0,0,16">
               <StackPanel>
                 <TextBlock x:Name="GuideStep3Heading" Text="3  Start and verify" FontSize="16" FontWeight="SemiBold" />
-                <TextBlock x:Name="GuideStep3Text" Text="Start echo cancellation. In Diagnostics, confirm 48 kHz and that audio blocks keep advancing before you connect the return." Foreground="{DynamicResource MutedInk}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                <TextBlock x:Name="GuideStep3Text" Text="Start echo cancellation. In Diagnostics, confirm the expected sample rate and that audio blocks keep advancing before you connect the return." Foreground="{DynamicResource MutedInk}" TextWrapping="Wrap" Margin="0,6,0,0" />
               </StackPanel>
             </Border>
 
@@ -281,6 +281,18 @@
 
             <Border Style="{StaticResource Card}" Margin="0,0,0,16">
               <StackPanel>
+                <TextBlock x:Name="SampleRateHeading" Text="44.1 kHz compatibility" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock x:Name="SampleRateStatusText" Text="48 kHz is recommended and uses no sample-rate conversion." Foreground="{DynamicResource MutedInk}" Margin="0,5,0,14" TextWrapping="Wrap" />
+                <CheckBox x:Name="Resample44100Box" Content="Allow 44.1 kHz compatibility resampling" Checked="SettingChanged" Unchecked="SettingChanged" />
+                <TextBlock x:Name="Resample44100Help" Text="Converts the microphone and speaker reference to 48 kHz for AEC, then converts the cleaned microphone back to 44.1 kHz." Foreground="{DynamicResource MutedInk}" Margin="25,5,0,0" TextWrapping="Wrap" />
+                <Border Background="{DynamicResource WarningBackground}" CornerRadius="8" Padding="11" Margin="0,14,0,0">
+                  <TextBlock x:Name="SampleRateWarningText" Text="Compatibility resampling is experimental and may add latency or CPU use. Prefer 48 kHz in VoiceMeeter when possible." Foreground="{DynamicResource WarningText}" TextWrapping="Wrap" />
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+              <StackPanel>
                 <CheckBox x:Name="StartupBox" Content="Start VoiceMeeter AEC when I sign in to Windows" Checked="SettingChanged" Unchecked="SettingChanged" />
                 <TextBlock x:Name="StartupHelp" Text="The app starts quietly in the notification area." Foreground="{DynamicResource MutedInk}" Margin="25,5,0,0" />
                 <CheckBox x:Name="StartupEngineBox" Content="Start the engine automatically after sign-in" Margin="25,16,0,0" Checked="SettingChanged" Unchecked="SettingChanged" />
@@ -293,7 +305,7 @@
                 <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <StackPanel Margin="0,0,24,0">
                   <TextBlock x:Name="UpdatesHeading" Text="Updates" FontSize="16" FontWeight="SemiBold" />
-                  <TextBlock x:Name="UpdateStatusText" Text="Current version 1.2.2" Foreground="{DynamicResource MutedInk}" Margin="0,5,0,11" TextWrapping="Wrap" />
+                  <TextBlock x:Name="UpdateStatusText" Text="Current version 1.3.0" Foreground="{DynamicResource MutedInk}" Margin="0,5,0,11" TextWrapping="Wrap" />
                   <CheckBox x:Name="AutomaticUpdatesBox" Content="Check for updates automatically" Checked="SettingChanged" Unchecked="SettingChanged" />
                   <TextBlock x:Name="AutomaticUpdatesHelp" Text="Checks GitHub Releases once a day. Installation always asks first." Foreground="{DynamicResource MutedInk}" Margin="25,5,0,0" TextWrapping="Wrap" />
                 </StackPanel>

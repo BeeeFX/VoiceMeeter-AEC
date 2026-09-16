@@ -16,6 +16,7 @@ public sealed class EngineHost : IDisposable
 
     public event Action<string>? StatusChanged;
     public event Action? DiagnosticsChanged;
+    public event Action? ConfigurationChanged;
     public event Action<int>? Exited;
     public bool Alive => _process is not null && !_finished;
     public bool EverRunning { get; private set; }
@@ -24,6 +25,8 @@ public sealed class EngineHost : IDisposable
     public float MicrophonePeak { get; private set; }
     public float ReferencePeak { get; private set; }
     public bool ReferenceRoutingUnavailable { get; private set; }
+    public int SampleRate { get; private set; }
+    public bool CompatibilityResamplingActive { get; private set; }
     public string Diagnostics => string.Join(Environment.NewLine, _lines);
 
     public void Start(string executable, IEnumerable<string> arguments, string logPath)
@@ -33,6 +36,8 @@ public sealed class EngineHost : IDisposable
         EverRunning = false;
         MicrophonePeak = ReferencePeak = 0;
         ReferenceRoutingUnavailable = false;
+        SampleRate = 0;
+        CompatibilityResamplingActive = false;
         _lines.Clear();
         if (!File.Exists(executable))
             throw new FileNotFoundException("The audio engine is missing. Reinstall VoiceMeeter AEC.", executable);
@@ -84,6 +89,12 @@ public sealed class EngineHost : IDisposable
 
     internal void ProcessLine(string line)
     {
+        if (line.StartsWith("config "))
+        {
+            SampleRate = (int)Number(line, "sample_rate");
+            CompatibilityResamplingActive = Number(line, "resampling") != 0;
+            ConfigurationChanged?.Invoke();
+        }
         if (line.StartsWith("status "))
         {
             MicrophonePeak = Number(line, "mic");
@@ -147,6 +158,9 @@ public sealed class EngineHost : IDisposable
         parser.ProcessLine("Auto strips mask: 0x20 -> A2; route state, not audio-level detection.");
         parser.ProcessLine("Running. Driver started; no callbacks yet.");
         if (parser.EverRunning || parser.Status != "ready") throw new InvalidOperationException("Startup was confirmed without audio.");
+        parser.ProcessLine("config sample_rate=44100 resampling=1");
+        if (parser.SampleRate != 44100 || !parser.CompatibilityResamplingActive)
+            throw new InvalidOperationException("Sample-rate compatibility status was not parsed.");
         foreach (var (fields, expected) in new[]
         {
             ("mode=0 auto=1", "auto"), ("mode=1 auto=1", "auto-bypass"),

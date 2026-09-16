@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0 — optional 44.1 kHz compatibility
+
+- Add an opt-in 44.1 kHz compatibility mode under Advanced. The AEC path converts the microphone and stereo speaker reference to 48 kHz for WebRTC processing, then converts the cleaned microphone back to 44.1 kHz for VoiceMeeter.
+- Detect and display the Insert driver's actual sample rate. A 44.1 kHz engine start now points users to the compatibility toggle, while other unsupported rates give a precise warning.
+- Keep native 48 kHz as the recommended default with no conversion. The compatibility toggle is off by default, saved automatically and locked while the engine is running.
+- Add automated 44.1 kHz framing, bypass and AEC processing checks, plus desktop checks for saved settings and engine arguments.
+
 ## 1.2.2 — keep the app available after closing
 
 - Make the window’s close button hide VoiceMeeter AEC in the notification area whether the audio engine is running or stopped.

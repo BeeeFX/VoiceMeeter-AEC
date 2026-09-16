@@ -15,6 +15,8 @@
 #include <cstdint>
 #include <array>
 extern "C" void aec_block(void*,const float*,const float*,const float*,float*,size_t,int,float*);
+extern "C" void* aec_create(int,int,int,int);
+extern "C" void aec_destroy(void*);
 namespace {
 bool route_active(float route,float sm,float bm,float sg,float bg,float layer,bool anysolo,float solo){return route>0.5f&&sm<0.5f&&bm<0.5f&&sg>-60.f&&bg>-60.f&&layer>-60.f&&(!anysolo||solo>0.5f);}
 int combine_route_states(int a,int b){return a==1||b==1?1:a<0||b<0?-1:0;}
@@ -23,6 +25,7 @@ std::vector<ASIOBufferInfo> buffers;
 std::vector<ASIOSampleType> formats;
 std::vector<float> micdata,leftdata,rightdata,clean;
 long channels=0,frames=0; int mic=0; uint64_t reference_left=0,reference_right=0,returns=0;
+long session_rate=48000;
 bool ready=false;
 std::atomic<int> mode{0},fault{0};
 std::atomic<uint64_t> callbacks{0},overruns{0},max_us{0};
@@ -131,11 +134,11 @@ void process(long index,ASIOBool) {
  transfer(index);if(ready && driver->outputReady()!=ASE_OK)fault=6;
  micpeak=stats[0];refpeak=stats[1];missing=stats[2];errors=stats[3];dsp_failed=stats[4];
  auto us=uint64_t(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-begin).count());
- if(us>max_us.load())max_us=us;if(us*48000>uint64_t(frames)*1000000)overruns++;callbacks++;
+ if(us>max_us.load())max_us=us;if(us*uint64_t(session_rate)>uint64_t(frames)*1000000)overruns++;callbacks++;
  busy.clear(std::memory_order_release);
 }
 ASIOTime* process_time(ASIOTime* t,long i,ASIOBool direct){process(i,direct);return t;}
-void rate_changed(ASIOSampleRate rate){if(rate!=48000.)fault=3;}
+void rate_changed(ASIOSampleRate rate){if(std::abs(rate-double(session_rate))>0.5)fault=3;}
 long message(long selector,long value,void*,double*) {
  if(selector==kAsioSelectorSupported)return value==kAsioEngineVersion||value==kAsioResetRequest||value==kAsioResyncRequest||value==kAsioLatenciesChanged||value==kAsioSupportsTimeInfo;
  if(selector==kAsioEngineVersion)return 2;if(selector==kAsioSupportsTimeInfo)return 1;
@@ -217,7 +220,7 @@ bool reference_selftest(){
  return true;
 }
 }
-extern "C" int asio_run(void* ctx,int m,uint64_t ref_left,uint64_t ref_right,uint64_t ret,int initial,int seconds,int probe,int auto_mask,int auto_bus,int edition,int* final_mode){
+extern "C" int asio_run(int m,uint64_t ref_left,uint64_t ref_right,uint64_t ret,int initial,int seconds,int probe,int auto_mask,int auto_bus,int edition,int delay_ms,int hold_ms,int suppression,int allow_44100_resampling,int* final_mode){
  setvbuf(stdout,nullptr,_IONBF,0);
  struct HostWindow { HWND h; ~HostWindow(){if(h)DestroyWindow(h);} } hostWindow{
   CreateWindowExW(0,L"STATIC",L"VoiceMeeter AEC",0,0,0,0,0,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr)
@@ -233,7 +236,7 @@ extern "C" int asio_run(void* ctx,int m,uint64_t ref_left,uint64_t ref_right,uin
  auto rr=RegQueryValueExW(key,L"CLSID",nullptr,&type,reinterpret_cast<BYTE*>(text),&size);RegCloseKey(key);CLSID id{};
  if(rr!=ERROR_SUCCESS||type!=REG_SZ||FAILED(CLSIDFromString(text,&id)))return 11;
  if(FAILED(CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED)))return 12;
- int result=0;bool created=false,started=false;Remote remote(strip_count);bool automatic=initial==3;
+ int result=0;bool created=false,started=false,owns_engine=false;Remote remote(strip_count);bool automatic=initial==3;
  do {
   if(FAILED(CoCreateInstance(id,nullptr,CLSCTX_INPROC_SERVER,id,reinterpret_cast<void**>(&driver)))){result=13;break;}
   if(!hostWindow.h||!driver->init(hostWindow.h)){result=14;break;}
@@ -241,7 +244,16 @@ extern "C" int asio_run(void* ctx,int m,uint64_t ref_left,uint64_t ref_right,uin
   if(!ok(driver->getChannels(&ins,&outs),"channels")||!ok(driver->getSampleRate(&rate),"sample rate")||!ok(driver->getBufferSize(&min,&max,&preferred,&gran),"buffer")){result=15;break;}
   driver->getLatencies(&inlat,&outlat);
   std::printf("Insert %s: %ld inputs / %ld outputs; %.0f Hz; buffer %ld (min %ld max %ld).\nDriver-reported latency: input %ld, output %ld samples.\n",edition_name,ins,outs,rate,preferred,min,max,inlat,outlat);
-  if(ins!=outs||ins!=expected_channels||preferred<1||preferred>8192||rate!=48000.){result=16;break;}
+  const long rate_hz=long(std::llround(rate));
+  const bool rate_is_valid=std::isfinite(rate)&&std::abs(rate-double(rate_hz))<=0.5&&rate_hz>=8000&&rate_hz<=384000&&rate_hz%100==0;
+  const bool needs_resampling=rate_hz!=48000;
+  std::printf("config sample_rate=%ld resampling=%d\n",rate_hz,int(needs_resampling&&allow_44100_resampling));
+  if(ins!=outs||ins!=expected_channels||preferred<1||preferred>8192||!rate_is_valid){result=16;break;}
+  if(!probe&&needs_resampling&&(rate_hz!=44100||!allow_44100_resampling)){
+   if(rate_hz==44100)std::fprintf(stderr,"VoiceMeeter is running at 44100 Hz. Enable 44.1 kHz compatibility resampling or switch VoiceMeeter to 48000 Hz.\n");
+   else std::fprintf(stderr,"VoiceMeeter is running at %ld Hz. This build supports native 48000 Hz and optional 44100 Hz compatibility resampling.\n",rate_hz);
+   result=16;break;
+  }
   channels=ins;frames=preferred;formats.resize(channels);bool valid=true;
   for(long c=0;c<channels;c++){
    ASIOChannelInfo a{},b{};a.channel=b.channel=c;a.isInput=ASIOTrue;b.isInput=ASIOFalse;
@@ -251,8 +263,11 @@ extern "C" int asio_run(void* ctx,int m,uint64_t ref_left,uint64_t ref_right,uin
   }
   if(!valid){std::fprintf(stderr,"Unsupported format; no stream opened.\n");result=17;break;}
   if(probe)break;
-  if(!ctx||m<0||m>=channels||ref_left==0||ref_right==0||((ref_left|ref_right|ret)>>channels)!=0||auto_mask<0||(auto_mask>>strip_count)!=0||auto_bus<0||auto_bus>=bus_count){result=18;break;}
-  engine=ctx;mic=m;reference_left=ref_left;reference_right=ref_right;returns=ret;mode=initial==3?0:initial;
+  if(m<0||m>=channels||ref_left==0||ref_right==0||((ref_left|ref_right|ret)>>channels)!=0||auto_mask<0||(auto_mask>>strip_count)!=0||auto_bus<0||auto_bus>=bus_count){result=18;break;}
+  engine=aec_create(rate_hz,delay_ms,hold_ms,suppression);owns_engine=engine!=nullptr;
+  if(!engine){std::fprintf(stderr,"Could not initialize AEC for %ld Hz.\n",rate_hz);result=18;break;}
+  session_rate=rate_hz;mic=m;reference_left=ref_left;reference_right=ref_right;returns=ret;mode=initial==3?0:initial;
+  if(needs_resampling)std::printf("Compatibility resampling active: 44100 Hz -> 48000 Hz AEC -> 44100 Hz.\n");
   initialize_weights();
   if(auto_mask>0&&!remote.open()){std::fprintf(stderr,"Remote API unavailable: Auto cannot read routing; Auto mode keeps AEC on.\n");if(automatic)mode=0;}
   bool reference_known=remote.reference_weights(auto_bus);
@@ -300,7 +315,7 @@ extern "C" int asio_run(void* ctx,int m,uint64_t ref_left,uint64_t ref_right,uin
   if(result){std::fprintf(stderr,"Driver requested stop / interruption: %d\n",fault.load());}
  }while(false);
  if(final_mode)*final_mode=automatic?3:mode.load();
- if(started)driver->stop();if(created)driver->disposeBuffers();if(driver){driver->Release();driver=nullptr;}
+ if(started)driver->stop();if(created)driver->disposeBuffers();if(owns_engine){aec_destroy(engine);engine=nullptr;}if(driver){driver->Release();driver=nullptr;}
  SetConsoleCtrlHandler(ctrl,FALSE);CoUninitialize();std::puts("Closed. If the strip is silent, disable its PATCH INSERT.");return result;
 }
 extern "C" int asio_transport_test(){

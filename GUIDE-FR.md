@@ -1,15 +1,15 @@
 # VoiceMeeter AEC — configuration Windows x64
 
-[English](GUIDE-EN.md) · Version 1.2.2 · Windows x64 · VoiceMeeter Banana ou Potato
+[English](GUIDE-EN.md) · Version 1.3.0 · Windows x64 · VoiceMeeter Banana ou Potato
 
 VoiceMeeter AEC atténue les sons des enceintes repris par le micro. Il utilise le pilote **VoiceMeeter Banana ou Potato Insert Virtual ASIO** correspondant, avant les effets de piste. VoiceMeeter garde le contrôle du matériel. L'application ne modifie ni les routes, ni les PATCH INSERT, ni les périphériques Windows par défaut.
 
 ## Premier démarrage
 
 1. Lancer **VoiceMeeter-AEC-Setup.exe**, puis ouvrir VoiceMeeter AEC depuis le menu Démarrer. L’installation concerne le compte Windows actuel, ne demande pas de droits administrateur et inclut .NET. Un ZIP portable reste disponible sur la page de version.
-2. Démarrer VoiceMeeter Banana ou Potato à **48 kHz** et y configurer le micro et les enceintes normalement. L'application détecte l'édition ouverte ; le sélecteur permet aussi de la choisir lorsque VoiceMeeter est fermé.
+2. Démarrer VoiceMeeter Banana ou Potato à **48 kHz** si possible et y configurer le micro et les enceintes normalement. L'application détecte l'édition ouverte ; le sélecteur permet aussi de la choisir lorsque VoiceMeeter est fermé. Une configuration existante à 44,1 kHz peut utiliser le mode de compatibilité facultatif décrit plus bas.
 3. Dans l'application, choisir la colonne contenant le microphone et une ou plusieurs colonnes de lecture contenant tous les sons joués par les enceintes. Leur son devient la référence d'écho. Choisir le bus A relié aux enceintes afin qu'Auto sache quelle route surveiller. L'application affiche uniquement les colonnes et bus de cette édition, puis les traduit automatiquement en canaux Insert.
-4. Garder les retours PATCH INSERT du micro désactivés et sélectionner **Démarrer l'annulation d'écho**. Ouvrir **Diagnostic** et vérifier que le pilote Insert indique 48 kHz et que le compteur `blocks` avance. Un seul client Insert peut fonctionner à la fois.
+4. Garder les retours PATCH INSERT du micro désactivés et sélectionner **Démarrer l'annulation d'écho**. Ouvrir **Diagnostic** et vérifier que le pilote Insert indique la fréquence attendue et que le compteur `blocks` avance. Un seul client Insert peut fonctionner à la fois.
 5. Dans VoiceMeeter, ouvrir **Menu → System Settings / Options → PATCH INSERT**. Au point PRE-FX, activer gauche et droite uniquement pour la colonne du microphone. Laisser tous les autres retours désactivés.
 6. Dans une application recevant le bus micro VoiceMeeter, essayer **Couper le micro**, **Bypass** et **AEC actif** depuis l'application ou son icône. Ne pas envoyer le micro vers les enceintes.
 7. Lire de la parole sur les enceintes, laisser environ 10–20 secondes d'adaptation, puis comparer à niveau identique. Parler en même temps et vérifier la clarté de la voix. Un écho résiduel peut subsister.
@@ -77,11 +77,15 @@ La suppression s'applique au prochain lancement du moteur. Elle ne corrige pas u
 
 Le tampon ajoute 480 échantillons / 10 ms, plus le maintien, même en bypass. L'AEC ajoute un délai interne. L'alignement synthétique d'environ 19 ms avec maintien nul n'est pas une mesure matérielle. Fondu AEC/bypass : 10 ms ; silence immédiat ; rétablissement : 5 ms.
 
+### Compatibilité 44,1 kHz
+
+Le mode natif 48 kHz reste recommandé et n'utilise aucune conversion de fréquence. Si VoiceMeeter doit rester à 44,1 kHz, activer **Avancé → Autoriser le rééchantillonnage de compatibilité à 44,1 kHz** avant de démarrer le moteur. L'application convertit uniquement le micro et la référence stéréo à 48 kHz pour l'AEC, puis renvoie le micro nettoyé à 44,1 kHz. Elle ne modifie pas la fréquence de VoiceMeeter et ne rééchantillonne pas les autres tranches ou bus. L'option est désactivée par défaut, car ce chemin est expérimental et peut ajouter un peu de charge processeur ou de latence. Les autres fréquences ne sont pas prises en charge.
+
 ## Icône, sauvegarde et démarrage Windows
 
 Fermer la fenêtre laisse toujours VoiceMeeter AEC actif dans la zone de notification, que le moteur audio fonctionne ou soit arrêté. Un clic gauche sur l’icône personnalisée ou la réouverture de **VoiceMeeter AEC.exe** restaure la fenêtre. Clic droit : AEC, Bypass, Silence, Auto, Diagnostic et Quitter. Utiliser **Quitter** dans ce menu pour fermer complètement l’application. Les diagnostics restent en anglais. Le survol de l’icône montre le statut ; Windows peut la ranger parmi les icônes masquées.
 
-Les réglages sont enregistrés automatiquement. Après un essai réussi, choisir Auto ou le mode initial souhaité dans **Avancé**, puis activer **Démarrer VoiceMeeter AEC à l’ouverture de ma session Windows** si nécessaire. L’option séparée **Démarrer automatiquement le moteur après l’ouverture de session** détermine si ce démarrage masqué attend aussi VoiceMeeter avant de lancer le moteur avec les réglages enregistrés. Configurer séparément le démarrage de VoiceMeeter et la restauration des réglages 48 kHz et des retours Insert testés.
+Les réglages sont enregistrés automatiquement. Après un essai réussi, choisir Auto ou le mode initial souhaité dans **Avancé**, puis activer **Démarrer VoiceMeeter AEC à l’ouverture de ma session Windows** si nécessaire. L’option séparée **Démarrer automatiquement le moteur après l’ouverture de session** détermine si ce démarrage masqué attend aussi VoiceMeeter avant de lancer le moteur avec les réglages enregistrés. Configurer séparément le démarrage de VoiceMeeter et la restauration de la fréquence et des retours Insert testés.
 
 L'application attend VoiceMeeter jusqu'à 90 secondes et retente certains échecs initiaux toutes les cinq secondes. Une panne est signalée par l'icône. Elle ne redémarre pas indéfiniment : la reprise native après reset/stall reste limitée à deux essais. Un appel de pilote bloqué peut dépasser le délai d'attente.
 
@@ -102,7 +106,7 @@ Pour désinstaller : désactiver le démarrage et enregistrer, désactiver PATCH
 - `blocks` : callbacks ; `max` : durée maximale complète ; `overruns` : dépassements du budget (4 ms à 192 échantillons / 48 kHz).
 - `mic`, `ref` : crêtes du dernier bloc. Après 500 ms de référence presque silencieuse, `ref_missing=1` sélectionne un bypass retardé. Une référence incorrecte mais non silencieuse n'est pas détectée.
 - `errors` : erreurs DSP, avec retour au micro direct retardé. Reset/resync ou absence de callbacks pendant deux secondes : au plus deux reprises, mode et profil conservés. Les autres erreurs arrêtent le moteur. Désactiver PATCH INSERT si la reprise échoue.
-- Uniquement 48 kHz et float32/PCM16/PCM24/PCM32 little-endian. Les canaux non sélectionnés restent inchangés. Les allocations internes Sonora ne sont pas garanties adaptées à toute charge temps réel.
+- 48 kHz en natif et 44,1 kHz avec le mode de compatibilité facultatif, en float32/PCM16/PCM24/PCM32 little-endian. Les autres fréquences sont refusées. Les canaux non sélectionnés restent inchangés. Les allocations internes Sonora ne sont pas garanties adaptées à toute charge temps réel.
 - La capture directe du matériel contourne le filtre. Les traitements et logiciels de communication en aval ajoutent leur latence et leur comportement de capture. Tester le chemin réellement reçu.
 
 ## Console et compilation

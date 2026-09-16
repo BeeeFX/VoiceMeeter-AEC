@@ -36,6 +36,8 @@ The app detects the running VoiceMeeter edition and shows only its real mixer la
 3. Open **Setup guide** inside the app, then follow its PATCH INSERT and verification steps.
 4. Select **Start echo cancellation**. Auto mode enables AEC when the chosen playback route is active and bypasses it when that route is inactive.
 
+VoiceMeeter at **48 kHz is recommended** and runs without sample-rate conversion. If an existing setup must remain at 44.1 kHz, enable **Advanced → Allow 44.1 kHz compatibility resampling**. The app will show the detected rate and explain what to change if startup is blocked.
+
 Your normal controls remain available from the window and the system tray: **Auto, AEC on, Bypass, and Mute**. Closing the window keeps the app in the notification area; left-click its icon to reopen it or use its menu to exit. Settings save automatically. Under **Advanced**, Windows startup and automatic engine startup are separate options. The app can also check the latest stable GitHub release at most once a day and asks before installing anything.
 
 | Banana layout | Integrated setup guide |
@@ -58,7 +60,7 @@ The app intentionally reads VoiceMeeter routing without changing it. This protec
 |---|---|
 | VoiceMeeter | Banana and Potato; detected automatically with a manual override |
 | Platform | Windows x64 |
-| Sample rate | 48 kHz |
+| Sample rate | 48 kHz native; optional 44.1 kHz compatibility resampling |
 | Microphone source | Banana IN1–IN3 or Potato IN1–IN5, left or right |
 | Playback reference | One or more strips; VAIO and AUX are common choices, plus VAIO3 on Potato |
 | AEC modes | Auto, always on, bypass, mute |
@@ -67,7 +69,7 @@ The app intentionally reads VoiceMeeter routing without changing it. This protec
 
 The reference must contain all audio played by your speakers and exclude the microphone. Select every relevant playback column; the engine combines their stereo pairs before AEC processing. See [Reference setup](GUIDE-EN.md#reference-the-sound-to-cancel) for details.
 
-The reference mix follows the selected speaker bus's routing, mutes and levels, with headroom to avoid clipping multiple sources. Live meters and status messages show whether audio is flowing, Auto is cancelling or bypassing, or routing/reference information is unavailable. Audio settings stay locked while the engine runs so the setup guide matches the active connection.
+The reference mix follows the selected speaker bus's routing, mutes and levels, with headroom to avoid clipping multiple sources. Live meters and status messages show whether audio is flowing, Auto is cancelling or bypassing, or routing/reference information is unavailable. Audio settings stay locked while the engine runs so the setup guide matches the active connection. The 44.1 kHz option converts only the microphone and reference used by AEC; it does not alter VoiceMeeter's other strips, buses or device settings.
 
 ## Validation status
 

@@ -1,7 +1,5 @@
 pub use sonora::config::ResidualSuppression;
 use sonora::{AudioProcessing, Config, StreamConfig, config::EchoCanceller};
-pub const FRAME: usize = 480;
-
 /// A fixed-length ramp. Repeated requests for the same target do not restart it.
 struct Ramp {
     value: f32,
@@ -35,12 +33,14 @@ impl Ramp {
 /// No growing queues. The reference is never copied to a microphone output.
 pub struct Engine {
     apm: AudioProcessing,
-    mic: [f32; FRAME],
-    left: [f32; FRAME],
-    right: [f32; FRAME],
-    output: [f32; FRAME],
-    scratch_l: [f32; FRAME],
-    scratch_r: [f32; FRAME],
+    sample_rate: usize,
+    frame: usize,
+    mic: Vec<f32>,
+    left: Vec<f32>,
+    right: Vec<f32>,
+    output: Vec<f32>,
+    scratch_l: Vec<f32>,
+    scratch_r: Vec<f32>,
     hold: Vec<f32>,
     hold_pos: usize,
     pos: usize,
@@ -59,7 +59,20 @@ impl Engine {
         Self::with_suppression(delay, hold_ms, ResidualSuppression::Gentle)
     }
     pub fn with_suppression(delay: i32, hold_ms: usize, suppression: ResidualSuppression) -> Self {
+        Self::with_sample_rate(delay, hold_ms, suppression, 48_000)
+            .expect("48 kHz must be a supported processing rate")
+    }
+    pub fn with_sample_rate(
+        delay: i32,
+        hold_ms: usize,
+        suppression: ResidualSuppression,
+        sample_rate: usize,
+    ) -> Option<Self> {
         assert!((0..=500).contains(&delay) && hold_ms <= 250);
+        if !(8_000..=384_000).contains(&sample_rate) || sample_rate % 100 != 0 {
+            return None;
+        }
+        let frame = sample_rate / 100;
         let config = Config {
             pipeline: sonora::config::Pipeline {
                 maximum_internal_processing_rate: sonora::config::MaxProcessingRate::Rate48kHz,
@@ -74,19 +87,21 @@ impl Engine {
         };
         let mut apm = AudioProcessing::builder()
             .config(config)
-            .capture_config(StreamConfig::new(48000, 1))
-            .render_config(StreamConfig::new(48000, 2))
+            .capture_config(StreamConfig::new(sample_rate as u32, 1))
+            .render_config(StreamConfig::new(sample_rate as u32, 2))
             .build();
         apm.set_stream_delay_ms(delay).unwrap();
-        Self {
+        Some(Self {
             apm,
-            mic: [0.; FRAME],
-            left: [0.; FRAME],
-            right: [0.; FRAME],
-            output: [0.; FRAME],
-            scratch_l: [0.; FRAME],
-            scratch_r: [0.; FRAME],
-            hold: vec![0.; hold_ms * 48],
+            sample_rate,
+            frame,
+            mic: vec![0.; frame],
+            left: vec![0.; frame],
+            right: vec![0.; frame],
+            output: vec![0.; frame],
+            scratch_l: vec![0.; frame],
+            scratch_r: vec![0.; frame],
+            hold: vec![0.; hold_ms * sample_rate / 1000],
             hold_pos: 0,
             pos: 0,
             wet: Ramp::new(0.),
@@ -98,7 +113,7 @@ impl Engine {
             quiet_frames: 0,
             mic_peak: 0.,
             ref_peak: 0.,
-        }
+        })
     }
     pub fn tick(&mut self, mic: f32, left: f32, right: f32, mode: i32) -> f32 {
         let finite = |v: f32| if v.is_finite() { v.clamp(-1., 1.) } else { 0. };
@@ -112,7 +127,7 @@ impl Engine {
         self.left[self.pos] = finite(left);
         self.right[self.pos] = finite(right);
         self.pos += 1;
-        if self.pos == FRAME {
+        if self.pos == self.frame {
             self.pos = 0;
             self.frames += 1;
             self.mic_peak = self.mic.iter().fold(0f32, |a, x| a.max(x.abs()));
@@ -151,7 +166,7 @@ impl Engine {
                 } else {
                     1.
                 },
-                FRAME,
+                self.frame,
             );
             for (i, x) in self.output.iter_mut().enumerate() {
                 let wet = self.wet.next();
@@ -163,7 +178,7 @@ impl Engine {
             self.unmute = Ramp::new(0.);
             0.
         } else {
-            self.unmute.target(1., 240);
+            self.unmute.target(1., self.sample_rate * 5 / 1000);
             result * self.unmute.next()
         }
     }
@@ -217,6 +232,23 @@ mod tests {
             assert_eq!(&out[..480], &[0.; 480]);
             assert_eq!(&out[480..], &source[..source.len() - 480]);
         }
+    }
+    #[test]
+    fn compatibility_rate_resamples_and_preserves_bypass_timing() {
+        let mut e = Engine::with_sample_rate(0, 0, ResidualSuppression::Balanced, 44_100).unwrap();
+        let source: Vec<f32> = (0..5000).map(|x| (x % 997) as f32 / 1000.).collect();
+        let output: Vec<f32> = source.iter().map(|x| e.tick(*x, 0.1, -0.1, 1)).collect();
+        assert_eq!(&output[..441], &[0.; 441]);
+        assert_eq!(&output[441..], &source[..source.len() - 441]);
+        assert_eq!(e.frames, (source.len() / 441) as u64);
+
+        let mut aec = Engine::with_sample_rate(40, 0, ResidualSuppression::Balanced, 44_100).unwrap();
+        for sample in 0..44_100 {
+            let reference = ((sample as f32 * 0.013).sin() * 0.4).clamp(-1., 1.);
+            assert!(aec.tick(reference * 0.2, reference, -reference, 0).is_finite());
+        }
+        assert_eq!(aec.frames, 100);
+        assert_eq!(aec.errors, 0);
     }
     #[test]
     fn hold_is_bounded_and_real() {

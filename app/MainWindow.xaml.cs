@@ -102,12 +102,12 @@ public partial class MainWindow : Window
         ["Speaker audio"] = "Son des enceintes",
         ["Clean mic"] = "Micro nettoyé",
         ["1  Prepare VoiceMeeter"] = "1  Préparez VoiceMeeter",
-        ["Open VoiceMeeter {0} and confirm the sample rate is 48 kHz. Keep PATCH INSERT off while choosing settings."] = "Ouvrez VoiceMeeter {0} et vérifiez que la fréquence est de 48 kHz. Laissez PATCH INSERT désactivé pendant les réglages.",
+        ["Open VoiceMeeter {0}. Use 48 kHz when possible; 44.1 kHz requires compatibility resampling under Advanced. Keep PATCH INSERT off while choosing settings."] = "Ouvrez VoiceMeeter {0}. Utilisez 48 kHz si possible ; 44,1 kHz nécessite le rééchantillonnage de compatibilité dans Avancé. Laissez PATCH INSERT désactivé pendant les réglages.",
         ["2  Match the three columns"] = "2  Associez les trois colonnes",
         ["Playback columns provide the audio reference AEC removes from your mic. The A bus is only the route Auto watches to decide when AEC should be active."] = "Les colonnes de lecture fournissent la référence audio que l’AEC retire du micro. Le bus A sert uniquement de route surveillée par Auto pour décider quand activer l’AEC.",
         ["Reference rule: include all speaker audio and exclude your microphone."] = "Règle de référence : incluez tout le son des enceintes et excluez votre microphone.",
         ["3  Start and verify"] = "3  Démarrez et vérifiez",
-        ["Start echo cancellation. In Diagnostics, confirm 48 kHz and that audio blocks keep advancing before you connect the return."] = "Démarrez l’annulation d’écho. Dans Diagnostic, vérifiez 48 kHz et que les blocs audio progressent avant de connecter le retour.",
+        ["Start echo cancellation. In Diagnostics, confirm the expected sample rate and that audio blocks keep advancing before you connect the return."] = "Démarrez l’annulation d’écho. Dans Diagnostic, vérifiez la fréquence attendue et que les blocs audio progressent avant de connecter le retour.",
         ["4  Enable PATCH INSERT"] = "4  Activez PATCH INSERT",
         ["Open Menu → System Settings / Options → PATCH INSERT. Enable PRE-FX L and R only for your microphone strip, then test AEC, Bypass and Mute."] = "Ouvrez Menu → System Settings / Options → PATCH INSERT. Activez PRE-FX L et R uniquement pour la piste du micro, puis testez AEC, Bypass et Couper le micro.",
         ["Your microphone is {0} — enable the two highlighted boxes (Left and Right)."] = "Votre microphone est sur {0} — activez les deux cases surlignées (gauche et droite).",
@@ -127,6 +127,16 @@ public partial class MainWindow : Window
         ["Leave both at zero unless you are correcting a measured alignment problem."] = "Laissez les deux valeurs à zéro sauf pour corriger un décalage mesuré.",
         ["Microphone hold"] = "Retard réel du microphone",
         ["AEC delay estimate"] = "Estimation du délai AEC",
+        ["44.1 kHz compatibility"] = "Compatibilité 44,1 kHz",
+        ["48 kHz is recommended and uses no sample-rate conversion."] = "48 kHz est recommandé et n’utilise aucune conversion de fréquence.",
+        ["Allow 44.1 kHz compatibility resampling"] = "Autoriser le rééchantillonnage de compatibilité à 44,1 kHz",
+        ["Converts the microphone and speaker reference to 48 kHz for AEC, then converts the cleaned microphone back to 44.1 kHz."] = "Convertit le microphone et la référence des enceintes en 48 kHz pour l’AEC, puis reconvertit le microphone nettoyé en 44,1 kHz.",
+        ["Compatibility resampling is experimental and may add latency or CPU use. Prefer 48 kHz in VoiceMeeter when possible."] = "Le rééchantillonnage de compatibilité est expérimental et peut ajouter de la latence ou utiliser davantage le processeur. Préférez 48 kHz dans VoiceMeeter lorsque c’est possible.",
+        ["Detected 48 kHz. Compatibility resampling is not active."] = "48 kHz détecté. Le rééchantillonnage de compatibilité n’est pas actif.",
+        ["Detected 44.1 kHz. Compatibility resampling is active."] = "44,1 kHz détecté. Le rééchantillonnage de compatibilité est actif.",
+        ["Detected 44.1 kHz. Compatibility resampling will be used the next time the engine starts."] = "44,1 kHz détecté. Le rééchantillonnage de compatibilité sera utilisé au prochain démarrage du moteur.",
+        ["VoiceMeeter is using 44.1 kHz. Enable compatibility resampling below or change VoiceMeeter to 48 kHz."] = "VoiceMeeter utilise 44,1 kHz. Activez le rééchantillonnage de compatibilité ci-dessous ou réglez VoiceMeeter sur 48 kHz.",
+        ["Unsupported sample rate: {0} Hz. Use 48 kHz in VoiceMeeter."] = "Fréquence non prise en charge : {0} Hz. Utilisez 48 kHz dans VoiceMeeter.",
         ["Start VoiceMeeter AEC when I sign in to Windows"] = "Démarrer VoiceMeeter AEC à l’ouverture de ma session Windows",
         ["The app starts quietly in the notification area."] = "L’application démarre discrètement dans la zone de notification.",
         ["Start the engine automatically after sign-in"] = "Démarrer automatiquement le moteur après l’ouverture de session",
@@ -385,6 +395,7 @@ public partial class MainWindow : Window
         WatchAllBox.IsChecked = _settings.WatchAllStrips;
         HoldSlider.Value = _settings.HoldMs;
         DelaySlider.Value = _settings.DelayMs;
+        Resample44100Box.IsChecked = _settings.Allow44100Resampling;
         StartupBox.IsChecked = _settings.StartWithWindows;
         StartupEngineBox.IsChecked = _settings.StartEngineWithWindows;
         AutomaticUpdatesBox.IsChecked = _settings.CheckForUpdatesAutomatically;
@@ -419,6 +430,7 @@ public partial class MainWindow : Window
         _settings.StartMode = SelectedTag(StartModeBox, "auto");
         _settings.HoldMs = (int)Math.Round(HoldSlider.Value);
         _settings.DelayMs = (int)Math.Round(DelaySlider.Value);
+        _settings.Allow44100Resampling = Resample44100Box.IsChecked == true;
         _settings.StartWithWindows = StartupBox.IsChecked == true;
         _settings.StartEngineWithWindows = StartupEngineBox.IsChecked == true;
         _settings.CheckForUpdatesAutomatically = AutomaticUpdatesBox.IsChecked == true;
@@ -490,6 +502,7 @@ public partial class MainWindow : Window
         if (!_ready) return;
         UpdateAutoControls();
         UpdateStartupControls();
+        if (ReferenceEquals(sender, Resample44100Box)) UpdateSampleRateStatus();
         QueueSave();
     }
 
@@ -499,6 +512,20 @@ public partial class MainWindow : Window
         var enabled = StartupBox.IsChecked == true;
         StartupEngineBox.IsEnabled = enabled;
         StartupEngineHelp.Opacity = enabled ? 1 : 0.55;
+    }
+
+    private void UpdateSampleRateStatus()
+    {
+        if (SampleRateStatusText is null) return;
+        SampleRateStatusText.Text = _engine.SampleRate switch
+        {
+            48_000 => T("Detected 48 kHz. Compatibility resampling is not active."),
+            44_100 when _engine.CompatibilityResamplingActive => T("Detected 44.1 kHz. Compatibility resampling is active."),
+            44_100 when Resample44100Box.IsChecked == true => T("Detected 44.1 kHz. Compatibility resampling will be used the next time the engine starts."),
+            44_100 => T("VoiceMeeter is using 44.1 kHz. Enable compatibility resampling below or change VoiceMeeter to 48 kHz."),
+            > 0 => string.Format(T("Unsupported sample rate: {0} Hz. Use 48 kHz in VoiceMeeter."), _engine.SampleRate),
+            _ => T("48 kHz is recommended and uses no sample-rate conversion.")
+        };
     }
 
     private void TimingChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -590,7 +617,7 @@ public partial class MainWindow : Window
         LanguageLabel.Text = T("Language");
         EditionLabel.Text = T("VoiceMeeter edition");
         EditionHelp.Text = T("Auto follows the running app. Choose manually to set up while VoiceMeeter is closed.");
-        EditionFooter.Text = $"Independent project · {_layout.DisplayName} · 48 kHz";
+        EditionFooter.Text = $"Independent project · {_layout.DisplayName} · 48 kHz native";
         ApplyTheme();
         var page = SetupView.Visibility == Visibility.Visible ? "setup" : GuideView.Visibility == Visibility.Visible ? "guide" : AdvancedView.Visibility == Visibility.Visible ? "advanced" : "diagnostics";
         ShowPage(page);
@@ -608,12 +635,12 @@ public partial class MainWindow : Window
         FlowPlayback.Text = T("Speaker audio");
         FlowCleanMic.Text = T("Clean mic");
         GuideStep1Heading.Text = T("1  Prepare VoiceMeeter");
-        GuideStep1Text.Text = string.Format(T("Open VoiceMeeter {0} and confirm the sample rate is 48 kHz. Keep PATCH INSERT off while choosing settings."), _layout.DisplayName);
+        GuideStep1Text.Text = string.Format(T("Open VoiceMeeter {0}. Use 48 kHz when possible; 44.1 kHz requires compatibility resampling under Advanced. Keep PATCH INSERT off while choosing settings."), _layout.DisplayName);
         GuideStep2Heading.Text = T("2  Match the three columns");
         GuideStep2Text.Text = T("The speaker bus controls Auto and the reference mix. Selected sources follow its routes, mutes and levels.");
         GuideReferenceRule.Text = T("Reference rule: include all speaker audio and exclude your microphone.");
         GuideStep3Heading.Text = T("3  Start and verify");
-        GuideStep3Text.Text = T("Start echo cancellation. In Diagnostics, confirm 48 kHz and that audio blocks keep advancing before you connect the return.");
+        GuideStep3Text.Text = T("Start echo cancellation. In Diagnostics, confirm the expected sample rate and that audio blocks keep advancing before you connect the return.");
         GuideStep4Heading.Text = T("4  Enable PATCH INSERT");
         GuideStep4Text.Text = T("Open Menu → System Settings / Options → PATCH INSERT. Enable PRE-FX L and R only for your microphone strip, then test AEC, Bypass and Mute.");
         UpdatePatchDiagram(SelectedKey(_micButtons, 1));
@@ -633,6 +660,11 @@ public partial class MainWindow : Window
         TimingHelp.Text = T("Leave both at zero unless you are correcting a measured alignment problem.");
         HoldLabel.Text = T("Microphone hold");
         DelayLabel.Text = T("AEC delay estimate");
+        SampleRateHeading.Text = T("44.1 kHz compatibility");
+        Resample44100Box.Content = T("Allow 44.1 kHz compatibility resampling");
+        Resample44100Help.Text = T("Converts the microphone and speaker reference to 48 kHz for AEC, then converts the cleaned microphone back to 44.1 kHz.");
+        SampleRateWarningText.Text = T("Compatibility resampling is experimental and may add latency or CPU use. Prefer 48 kHz in VoiceMeeter when possible.");
+        UpdateSampleRateStatus();
         StartupBox.Content = T("Start VoiceMeeter AEC when I sign in to Windows");
         StartupHelp.Text = T("The app starts quietly in the notification area.");
         StartupEngineBox.Content = T("Start the engine automatically after sign-in");
@@ -686,6 +718,7 @@ public partial class MainWindow : Window
             }
         });
         _engine.DiagnosticsChanged += () => Dispatcher.BeginInvoke(() => DiagnosticsBox.Text = _engine.Diagnostics);
+        _engine.ConfigurationChanged += () => Dispatcher.BeginInvoke(UpdateSampleRateStatus);
         _engine.Exited += code => Dispatcher.BeginInvoke(() =>
         {
             _stopConfirmation?.TrySetResult(false);
@@ -697,6 +730,18 @@ public partial class MainWindow : Window
             {
                 _startupPending = false;
                 _startupTimer?.Stop();
+                var sampleRateProblem = code == 16 && _engine.SampleRate != 0 && _engine.SampleRate != 48_000;
+                if (sampleRateProblem)
+                {
+                    UpdateSampleRateStatus();
+                    if (IsVisible) ShowPage("advanced");
+                    else
+                    {
+                        _balloonPage = "advanced";
+                        _tray?.ShowBalloonTip(7000, "VoiceMeeter AEC", SampleRateStatusText.Text, WinForms.ToolTipIcon.Warning);
+                    }
+                    return;
+                }
                 if (IsVisible)
                 {
                     ShowPage("diagnostics");
@@ -975,6 +1020,12 @@ public partial class MainWindow : Window
         var joined = string.Join(' ', arguments);
         if (!joined.Contains("--edition potato") || !joined.Contains("--mic 6") || !joined.Contains("--ref 11,12,19,20") || !joined.Contains("--returns 5,6") || !joined.Contains("--auto-bus 4"))
             throw new InvalidOperationException("A Potato selection produced incorrect engine channels.");
+        _settings.Allow44100Resampling = true;
+        Resample44100Box.IsChecked = true;
+        if (!BuildEngineArguments().Contains("--allow-44100-resampling"))
+            throw new InvalidOperationException("44.1 kHz compatibility was not passed to the engine.");
+        _settings.Allow44100Resampling = false;
+        Resample44100Box.IsChecked = false;
 
         ChangeLayout(MixerLayout.Banana);
         if (_micButtons.Count != 3 || _referenceButtons.Count != 5 || _busButtons.Count != 3 || _autoButtons.Count != 5)
@@ -1003,10 +1054,12 @@ public partial class MainWindow : Window
         var bananaSettings = AppSettings.Parse("""{"Schema":3,"VoiceMeeterEdition":"banana"}""", false);
         var defaults = new AppSettings();
         var startupEngineDisabled = AppSettings.Parse("""{"Schema":3,"StartWithWindows":true,"StartEngineWithWindows":false}""", false);
+        var resamplingEnabled = AppSettings.Parse("""{"Schema":3,"Allow44100Resampling":true}""", false);
         if (!upgraded.ReferenceStrips.SequenceEqual([7]) || !multiple.ReferenceStrips.SequenceEqual([6, 7]) ||
             !upgraded.CheckForUpdatesAutomatically || updatesDisabled.CheckForUpdatesAutomatically ||
             upgraded.VoiceMeeterEdition != "auto" || bananaSettings.VoiceMeeterEdition != "banana" ||
-            defaults.Suppression != "strong" || !defaults.StartEngineWithWindows || startupEngineDisabled.StartEngineWithWindows)
+            defaults.Suppression != "strong" || !defaults.StartEngineWithWindows || startupEngineDisabled.StartEngineWithWindows ||
+            defaults.Allow44100Resampling || !resamplingEnabled.Allow44100Resampling)
             throw new InvalidOperationException("Saved settings migration is invalid.");
         StartupBox.IsChecked = false;
         UpdateStartupControls();
@@ -1040,7 +1093,7 @@ public partial class MainWindow : Window
         };
         SetModeButtons(true);
         if (MicStripPanel.IsEnabled || ReferenceStripPanel.IsEnabled || BusPanel.IsEnabled ||
-            AutoStripPanel.IsEnabled || SuppressionBox.IsEnabled || MicSideBox.IsEnabled || HoldSlider.IsEnabled || DelaySlider.IsEnabled)
+            AutoStripPanel.IsEnabled || SuppressionBox.IsEnabled || MicSideBox.IsEnabled || HoldSlider.IsEnabled || DelaySlider.IsEnabled || Resample44100Box.IsEnabled)
             throw new InvalidOperationException("Audio settings must stay locked while the engine is running.");
         if (!BuildEngineArguments("mute").Contains("--mute") || _settings.StartMode != "auto")
             throw new InvalidOperationException("Update resume mode must not change the saved startup mode.");
@@ -1062,7 +1115,7 @@ public partial class MainWindow : Window
         if (modeButtons.Any(pair => pair.Value.Tag is not null))
             throw new InvalidOperationException("A mode button remains selected while the engine is stopped.");
         SetModeButtons(false);
-        if (!MicStripPanel.IsEnabled || !ReferenceStripPanel.IsEnabled || !SuppressionBox.IsEnabled ||
+        if (!MicStripPanel.IsEnabled || !ReferenceStripPanel.IsEnabled || !SuppressionBox.IsEnabled || !Resample44100Box.IsEnabled ||
             AudioSettingsLockText.Visibility != Visibility.Collapsed)
             throw new InvalidOperationException("Audio settings must unlock after stopping.");
         if (string.IsNullOrWhiteSpace(StopDialogTitle.Text) || string.IsNullOrWhiteSpace(StopDialogText.Text) ||
@@ -1285,6 +1338,7 @@ public partial class MainWindow : Window
             "--auto-bus", _settings.SpeakerBus.ToString(), "--suppression", _settings.Suppression,
             "--" + (resumeMode ?? _settings.StartMode)
         };
+        if (_settings.Allow44100Resampling) result.Add("--allow-44100-resampling");
         return result;
     }
 
@@ -1370,7 +1424,7 @@ public partial class MainWindow : Window
         MuteModeButton.IsEnabled = enabled && !_applyingUpdate;
         var editable = !enabled && !_applyingUpdate;
         foreach (var control in new System.Windows.UIElement[] { EditionBox, MicStripPanel, ReferenceStripPanel,
-                     BusPanel, AutoStripPanel, WatchAllBox, MicSideBox, SuppressionBox, HoldSlider, DelaySlider })
+                     BusPanel, AutoStripPanel, WatchAllBox, MicSideBox, SuppressionBox, HoldSlider, DelaySlider, Resample44100Box })
             control.IsEnabled = editable;
         AudioSettingsLockText.Visibility = editable ? Visibility.Collapsed : Visibility.Visible;
         if (!enabled) UpdateModeSelection("stopped");

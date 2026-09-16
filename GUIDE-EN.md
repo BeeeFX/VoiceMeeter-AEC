@@ -1,15 +1,15 @@
 # VoiceMeeter AEC — Windows x64 setup
 
-[Français](GUIDE-FR.md) · Version 1.2.2 · Windows x64 · VoiceMeeter Banana or Potato
+[Français](GUIDE-FR.md) · Version 1.3.0 · Windows x64 · VoiceMeeter Banana or Potato
 
 VoiceMeeter AEC attenuates speaker playback picked up by a microphone. It processes the microphone through the matching **VoiceMeeter Banana or Potato Insert Virtual ASIO** driver, before VoiceMeeter strip effects. VoiceMeeter retains control of the hardware. The app does not change routes, patch settings or Windows default devices.
 
 ## First setup
 
 1. Run **VoiceMeeter-AEC-Setup.exe**, then open VoiceMeeter AEC from the Start menu. It installs for the current Windows account without administrator rights and includes .NET. The release page also offers a portable ZIP.
-2. Run VoiceMeeter Banana or Potato at **48 kHz** and configure its microphone and speaker output as usual. The app detects the running edition; the edition selector lets you choose manually while VoiceMeeter is closed.
+2. Run VoiceMeeter Banana or Potato at **48 kHz** when possible and configure its microphone and speaker output as usual. The app detects the running edition; the edition selector lets you choose manually while VoiceMeeter is closed. Existing 44.1 kHz setups can use the opt-in compatibility setting described below.
 3. In the app, select the VoiceMeeter column containing your microphone and one or more playback columns containing every sound played through your speakers. Their audio becomes the echo reference. Select the A bus connected to those speakers so Auto mode knows which route to watch. The app shows only the columns and buses available in your edition and converts them to Insert channels automatically.
-4. Leave the microphone PATCH INSERT returns disabled and select **Start echo cancellation**. Open **Diagnostics** and confirm that the Insert driver reports 48 kHz and the `blocks` counter advances. The driver accepts one Insert client at a time.
+4. Leave the microphone PATCH INSERT returns disabled and select **Start echo cancellation**. Open **Diagnostics** and confirm that the Insert driver reports the expected sample rate and the `blocks` counter advances. The driver accepts one Insert client at a time.
 5. In VoiceMeeter, open **Menu → System Settings / Options → PATCH INSERT**. At the PRE-FX insert point, enable left and right only for the microphone column. Leave every other return disabled.
 6. In an application receiving your VoiceMeeter microphone bus, try **Mute**, **Bypass**, and **AEC on** from the app or tray menu. Keep the microphone out of your speaker routes.
 7. Play speech through speakers, allow around 10–20 seconds for adaptation, and compare bypass/AEC at matching levels. Speak over the playback and check voice clarity. Some residual echo can remain.
@@ -77,11 +77,15 @@ Suppression changes apply when the engine next starts and cannot compensate for 
 
 The host adds 480 samples / 10 ms of framing, plus hold, even in bypass. AEC adds internal delay. Synthetic alignment is around 19 ms overall with zero hold; this is not a measured hardware latency. AEC/bypass transitions fade over 10 ms; mute is immediate and unmute fades over 5 ms.
 
+### 44.1 kHz compatibility
+
+Native 48 kHz remains recommended and uses no sample-rate conversion. If VoiceMeeter must remain at 44.1 kHz, enable **Advanced → Allow 44.1 kHz compatibility resampling** before starting the engine. The app converts only the microphone and stereo reference to 48 kHz for AEC, then returns the cleaned microphone at 44.1 kHz. It does not change VoiceMeeter's sample rate or resample unrelated strips and buses. The option is off by default because this path is experimental and can add some CPU use or latency. Other sample rates are not supported.
+
 ## Tray, settings and Windows startup
 
 Closing the window always keeps VoiceMeeter AEC running in the notification area, whether the audio engine is active or stopped. Left-click the custom icon once or reopen **VoiceMeeter AEC.exe** to restore the window. Right-click for AEC, Bypass, Mute, Auto, Diagnostics and Exit. Use **Exit** there to close the app completely. Diagnostics are English in both languages. The icon tooltip shows status; Windows may place it under the hidden-icons arrow.
 
-Settings save automatically. After testing, choose Auto or the desired starting mode under **Advanced**, then enable **Start VoiceMeeter AEC when I sign in to Windows** if wanted. Its separate **Start the engine automatically after sign-in** option controls whether the hidden startup also waits for VoiceMeeter and starts the engine with the saved settings. Configure VoiceMeeter separately to start and restore the tested 48 kHz configuration and insert routing.
+Settings save automatically. After testing, choose Auto or the desired starting mode under **Advanced**, then enable **Start VoiceMeeter AEC when I sign in to Windows** if wanted. Its separate **Start the engine automatically after sign-in** option controls whether the hidden startup also waits for VoiceMeeter and starts the engine with the saved settings. Configure VoiceMeeter separately to start and restore the tested sample rate and insert routing.
 
 It waits up to 90 seconds for VoiceMeeter and retries selected initial driver failures at five-second intervals. Failure is reported through the tray. It does not endlessly restart after a crash; native driver reset/stall recovery stays limited to two attempts. A driver call that itself hangs may exceed the startup waiting deadline.
 
@@ -102,7 +106,7 @@ To remove the app: disable startup and save, disable PATCH INSERT, exit from the
 - `blocks`: callbacks; `max`: worst full callback duration; `overruns`: callbacks exceeding the buffer period (4 ms at 192 samples / 48 kHz).
 - `mic` and `ref`: last-frame peaks. `ref_missing=1` follows 500 ms of near-silent reference and selects delayed dry bypass. A wrong but non-silent reference cannot be detected automatically.
 - `errors`: DSP failures, causing delayed dry microphone fallback. Driver reset/resync or a two-second callback stall can retry twice, preserving mode/profile. Other faults stop the engine. Disable PATCH INSERT if recovery fails.
-- Only 48 kHz and little-endian float32/PCM16/PCM24/PCM32 are supported. Unselected channels remain unchanged. Sonora's internal allocations have not been proven safe for every real-time workload.
+- Native 48 kHz and opt-in 44.1 kHz compatibility mode are supported with little-endian float32/PCM16/PCM24/PCM32. Other rates are rejected. Unselected channels remain unchanged. Sonora's internal allocations have not been proven safe for every real-time workload.
 - Applications capturing hardware directly bypass this filter. Downstream effects and communication software have their own latency and capture behavior. Test the actual receiving application's path.
 
 ## Console and building
