@@ -47,6 +47,9 @@ try {
    $preview=Start-Process -FilePath $appExecutable -ArgumentList $previewArguments -Wait -PassThru
    if($preview.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $previewPath)){throw "Desktop app $page preview failed"}
   }
+  $startupPreviewPath=Join-Path $PSScriptRoot 'docs\images\app-advanced-startup.png'
+  $startupPreview=Start-Process -FilePath $appExecutable -ArgumentList @('--preview',$startupPreviewPath,'--preview-page','advanced','--preview-bottom','--dark') -Wait -PassThru
+  if($startupPreview.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $startupPreviewPath)){throw 'Desktop app startup preview failed'}
   $bananaPreviewPath=Join-Path $PSScriptRoot 'docs\images\app-setup-banana.png'
   $bananaPreview=Start-Process -FilePath $appExecutable -ArgumentList @('--preview',$bananaPreviewPath,'--preview-page','setup','--dark','--banana') -Wait -PassThru
   if($bananaPreview.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $bananaPreviewPath)){throw 'Desktop app Banana preview failed'}

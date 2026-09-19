@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.1 — optional engine start when opening the app
+
+- Add a saved **Start echo cancellation when I open the app** switch under Advanced → Automatic start. Normal launches, including reopening an existing tray instance from its shortcut, wait for VoiceMeeter and start the engine in the saved mode with saved audio settings.
+- Keep the separate Windows sign-in switches and update-resume behavior. Manual startup remains the default for normal launches.
+- Cancel a pending automatic attempt when the user starts or stops the engine manually, and refresh the Windows sign-in shortcut to the currently running app location.
+
 ## 1.3.0 — optional 44.1 kHz compatibility
 
 - Add an opt-in 44.1 kHz compatibility mode under Advanced. The AEC path converts the microphone and stereo speaker reference to 48 kHz for WebRTC processing, then converts the cleaned microphone back to 44.1 kHz for VoiceMeeter.

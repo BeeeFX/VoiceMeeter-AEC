@@ -1,6 +1,6 @@
 # VoiceMeeter AEC — configuration Windows x64
 
-[English](GUIDE-EN.md) · Version 1.3.0 · Windows x64 · VoiceMeeter Banana ou Potato
+[English](GUIDE-EN.md) · Version 1.3.1 · Windows x64 · VoiceMeeter Banana ou Potato
 
 VoiceMeeter AEC atténue les sons des enceintes repris par le micro. Il utilise le pilote **VoiceMeeter Banana ou Potato Insert Virtual ASIO** correspondant, avant les effets de piste. VoiceMeeter garde le contrôle du matériel. L'application ne modifie ni les routes, ni les PATCH INSERT, ni les périphériques Windows par défaut.
 
@@ -85,7 +85,7 @@ Le mode natif 48 kHz reste recommandé et n'utilise aucune conversion de fréque
 
 Fermer la fenêtre laisse toujours VoiceMeeter AEC actif dans la zone de notification, que le moteur audio fonctionne ou soit arrêté. Un clic gauche sur l’icône personnalisée ou la réouverture de **VoiceMeeter AEC.exe** restaure la fenêtre. Clic droit : AEC, Bypass, Silence, Auto, Diagnostic et Quitter. Utiliser **Quitter** dans ce menu pour fermer complètement l’application. Les diagnostics restent en anglais. Le survol de l’icône montre le statut ; Windows peut la ranger parmi les icônes masquées.
 
-Les réglages sont enregistrés automatiquement. Après un essai réussi, choisir Auto ou le mode initial souhaité dans **Avancé**, puis activer **Démarrer VoiceMeeter AEC à l’ouverture de ma session Windows** si nécessaire. L’option séparée **Démarrer automatiquement le moteur après l’ouverture de session** détermine si ce démarrage masqué attend aussi VoiceMeeter avant de lancer le moteur avec les réglages enregistrés. Configurer séparément le démarrage de VoiceMeeter et la restauration de la fréquence et des retours Insert testés.
+Les réglages sont enregistrés automatiquement. Après un essai réussi, choisir Auto ou le mode initial souhaité dans **Avancé**. Activer **Démarrer l’annulation d’écho à l’ouverture de l’application** pour lancer automatiquement le moteur lors d’une ouverture normale ; l’application attend VoiceMeeter pendant au plus 90 secondes et utilise le mode et les réglages enregistrés. Cette option est désactivée par défaut. **Démarrer VoiceMeeter AEC à l’ouverture de ma session Windows** ouvre séparément l’application en arrière-plan ; **Démarrer automatiquement le moteur après l’ouverture de session** décide si le moteur démarre aussi dans ce cas. Configurer séparément le démarrage de VoiceMeeter et la restauration de la fréquence et des retours Insert testés. Si VoiceMeeter fonctionne à 44,1 kHz, activer également le mode de compatibilité ; sinon le moteur ne peut pas démarrer.
 
 L'application attend VoiceMeeter jusqu'à 90 secondes et retente certains échecs initiaux toutes les cinq secondes. Une panne est signalée par l'icône. Elle ne redémarre pas indéfiniment : la reprise native après reset/stall reste limitée à deux essais. Un appel de pilote bloqué peut dépasser le délai d'attente.
 

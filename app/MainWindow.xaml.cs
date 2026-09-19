@@ -137,6 +137,9 @@ public partial class MainWindow : Window
         ["Detected 44.1 kHz. Compatibility resampling will be used the next time the engine starts."] = "44,1 kHz détecté. Le rééchantillonnage de compatibilité sera utilisé au prochain démarrage du moteur.",
         ["VoiceMeeter is using 44.1 kHz. Enable compatibility resampling below or change VoiceMeeter to 48 kHz."] = "VoiceMeeter utilise 44,1 kHz. Activez le rééchantillonnage de compatibilité ci-dessous ou réglez VoiceMeeter sur 48 kHz.",
         ["Unsupported sample rate: {0} Hz. Use 48 kHz in VoiceMeeter."] = "Fréquence non prise en charge : {0} Hz. Utilisez 48 kHz dans VoiceMeeter.",
+        ["Automatic start"] = "Démarrage automatique",
+        ["Start echo cancellation when I open the app"] = "Démarrer l’annulation d’écho à l’ouverture de l’application",
+        ["Waits for VoiceMeeter, then starts in your saved mode. Windows sign-in has a separate option below."] = "Attend VoiceMeeter, puis démarre avec le mode enregistré. Une option distincte ci-dessous règle l’ouverture de session Windows.",
         ["Start VoiceMeeter AEC when I sign in to Windows"] = "Démarrer VoiceMeeter AEC à l’ouverture de ma session Windows",
         ["The app starts quietly in the notification area."] = "L’application démarre discrètement dans la zone de notification.",
         ["Start the engine automatically after sign-in"] = "Démarrer automatiquement le moteur après l’ouverture de session",
@@ -248,7 +251,14 @@ public partial class MainWindow : Window
         ApplyLanguage();
         ConfigureEngineEvents();
         ConfigureTray();
-        _showTimer.Tick += (_, _) => { if (App.ShowSignal?.WaitOne(0) == true) ShowWindow(); };
+        _showTimer.Tick += (_, _) =>
+        {
+            if (App.ShowSignal?.WaitOne(0) != true) return;
+            ShowWindow();
+            // A second shortcut launch asks the existing tray instance to reopen.
+            // Honor the launch option there too if its engine was stopped.
+            if (OpenEngineBox.IsChecked == true) BeginStartupWait();
+        };
         _showTimer.Start();
         _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); SaveSettingsNow(); };
         Loaded += Window_Loaded;
@@ -396,6 +406,7 @@ public partial class MainWindow : Window
         HoldSlider.Value = _settings.HoldMs;
         DelaySlider.Value = _settings.DelayMs;
         Resample44100Box.IsChecked = _settings.Allow44100Resampling;
+        OpenEngineBox.IsChecked = _settings.StartEngineWhenOpened;
         StartupBox.IsChecked = _settings.StartWithWindows;
         StartupEngineBox.IsChecked = _settings.StartEngineWithWindows;
         AutomaticUpdatesBox.IsChecked = _settings.CheckForUpdatesAutomatically;
@@ -431,6 +442,7 @@ public partial class MainWindow : Window
         _settings.HoldMs = (int)Math.Round(HoldSlider.Value);
         _settings.DelayMs = (int)Math.Round(DelaySlider.Value);
         _settings.Allow44100Resampling = Resample44100Box.IsChecked == true;
+        _settings.StartEngineWhenOpened = OpenEngineBox.IsChecked == true;
         _settings.StartWithWindows = StartupBox.IsChecked == true;
         _settings.StartEngineWithWindows = StartupEngineBox.IsChecked == true;
         _settings.CheckForUpdatesAutomatically = AutomaticUpdatesBox.IsChecked == true;
@@ -665,6 +677,9 @@ public partial class MainWindow : Window
         Resample44100Help.Text = T("Converts the microphone and speaker reference to 48 kHz for AEC, then converts the cleaned microphone back to 44.1 kHz.");
         SampleRateWarningText.Text = T("Compatibility resampling is experimental and may add latency or CPU use. Prefer 48 kHz in VoiceMeeter when possible.");
         UpdateSampleRateStatus();
+        StartupHeading.Text = T("Automatic start");
+        OpenEngineBox.Content = T("Start echo cancellation when I open the app");
+        OpenEngineHelp.Text = T("Waits for VoiceMeeter, then starts in your saved mode. Windows sign-in has a separate option below.");
         StartupBox.Content = T("Start VoiceMeeter AEC when I sign in to Windows");
         StartupHelp.Text = T("The app starts quietly in the notification area.");
         StartupEngineBox.Content = T("Start the engine automatically after sign-in");
@@ -734,10 +749,14 @@ public partial class MainWindow : Window
                 if (sampleRateProblem)
                 {
                     UpdateSampleRateStatus();
-                    if (IsVisible) ShowPage("advanced");
+                    if (IsVisible)
+                    {
+                        ShowPage("advanced");
+                        Dispatcher.BeginInvoke(() => SampleRateHeading.BringIntoView(), DispatcherPriority.Loaded);
+                    }
                     else
                     {
-                        _balloonPage = "advanced";
+                        _balloonPage = "sample-rate";
                         _tray?.ShowBalloonTip(7000, "VoiceMeeter AEC", SampleRateStatusText.Text, WinForms.ToolTipIcon.Warning);
                     }
                     return;
@@ -778,6 +797,12 @@ public partial class MainWindow : Window
             _tray.BalloonTipClicked += (_, _) => Dispatcher.Invoke(() =>
             {
                 if (_balloonPage == "advanced") ShowUpdates();
+                else if (_balloonPage == "sample-rate")
+                {
+                    ShowWindow();
+                    ShowPage("advanced");
+                    Dispatcher.BeginInvoke(() => SampleRateHeading.BringIntoView(), DispatcherPriority.Loaded);
+                }
                 else { ShowWindow(); ShowPage(_balloonPage); }
             });
         }
@@ -954,15 +979,19 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Reconcile the Windows Run entry with this executable, including after an update
+        // or a move from a previous portable/development location.
+        SaveSettingsNow();
         if (_arguments.Contains("--startup"))
         {
             Hide();
-            if (_settings.StartEngineWithWindows) BeginStartupWait();
+            if (ShouldStartEngineOnLaunch(_arguments, _settings)) BeginStartupWait();
         }
         else
         {
             LoadVoiceMeeterLabels();
             if (UpdateService.RestartModeFromArguments(_arguments) is { } resumeMode) StartEngine(true, resumeMode);
+            else if (ShouldStartEngineOnLaunch(_arguments, _settings)) BeginStartupWait();
         }
 
         _ = Task.Run(UpdateService.CleanupOldUpdateFiles);
@@ -1054,16 +1083,27 @@ public partial class MainWindow : Window
         var bananaSettings = AppSettings.Parse("""{"Schema":3,"VoiceMeeterEdition":"banana"}""", false);
         var defaults = new AppSettings();
         var startupEngineDisabled = AppSettings.Parse("""{"Schema":3,"StartWithWindows":true,"StartEngineWithWindows":false}""", false);
+        var launchEngineEnabled = AppSettings.Parse("""{"Schema":3,"StartEngineWhenOpened":true}""", false);
         var resamplingEnabled = AppSettings.Parse("""{"Schema":3,"Allow44100Resampling":true}""", false);
         if (!upgraded.ReferenceStrips.SequenceEqual([7]) || !multiple.ReferenceStrips.SequenceEqual([6, 7]) ||
             !upgraded.CheckForUpdatesAutomatically || updatesDisabled.CheckForUpdatesAutomatically ||
             upgraded.VoiceMeeterEdition != "auto" || bananaSettings.VoiceMeeterEdition != "banana" ||
             defaults.Suppression != "strong" || !defaults.StartEngineWithWindows || startupEngineDisabled.StartEngineWithWindows ||
+            defaults.StartEngineWhenOpened || !launchEngineEnabled.StartEngineWhenOpened ||
             defaults.Allow44100Resampling || !resamplingEnabled.Allow44100Resampling)
             throw new InvalidOperationException("Saved settings migration is invalid.");
+        if (ShouldStartEngineOnLaunch([], defaults) || !ShouldStartEngineOnLaunch([], launchEngineEnabled) ||
+            !ShouldStartEngineOnLaunch(["--startup"], defaults) || ShouldStartEngineOnLaunch(["--startup"], startupEngineDisabled))
+            throw new InvalidOperationException("The normal-launch and sign-in engine switches were not kept independent.");
+        OpenEngineBox.IsChecked = true;
+        SyncSettingsFromControls();
+        if (!_settings.StartEngineWhenOpened)
+            throw new InvalidOperationException("Normal-launch engine startup was not saved from its switch.");
+        OpenEngineBox.IsChecked = false;
+        SyncSettingsFromControls();
         StartupBox.IsChecked = false;
         UpdateStartupControls();
-        if (StartupEngineBox.IsEnabled)
+        if (StartupEngineBox.IsEnabled || !OpenEngineBox.IsEnabled)
             throw new InvalidOperationException("Engine startup can be enabled while Windows startup is off.");
         StartupBox.IsChecked = true;
         UpdateStartupControls();
@@ -1290,12 +1330,23 @@ public partial class MainWindow : Window
 
     private void BeginStartupWait()
     {
+        if (_startupPending || _engine.Alive) return;
         _startupPending = true;
         _startupDeadline = DateTime.Now.AddSeconds(90);
         _startupTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _startupTimer.Tick += (_, _) => TryStartup();
         _startupTimer.Start();
         TryStartup();
+    }
+
+    private static bool ShouldStartEngineOnLaunch(string[] arguments, AppSettings settings) =>
+        arguments.Contains("--startup") ? settings.StartEngineWithWindows : settings.StartEngineWhenOpened;
+
+    private void CancelStartupWait()
+    {
+        _startupPending = false;
+        _startupTimer?.Stop();
+        _startupTimer = null;
     }
 
     private void TryStartup()
@@ -1405,6 +1456,7 @@ public partial class MainWindow : Window
     private async void Engine_Click(object sender, RoutedEventArgs e)
     {
         if (_applyingUpdate) return;
+        CancelStartupWait();
         if (_engine.Alive)
         {
             if (await StopEngine(true))

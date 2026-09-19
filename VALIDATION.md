@@ -1,6 +1,6 @@
-# VoiceMeeter AEC 1.3.0 — validation
+# VoiceMeeter AEC 1.3.1 — validation
 
-[English](VALIDATION-EN.md) · Version 1.3.0
+[English](VALIDATION-EN.md) · Version 1.3.1
 
 Les contrôles passent pour Douce et Équilibrée. **Forte expose la suppression d'origine, plus agressive, et échoue à certains critères de préservation du signal proche.** Des tests synthétiques réussis ne prouvent ni une voix transparente ni une stabilité de production.
 
@@ -11,14 +11,14 @@ Les contrôles passent pour Douce et Équilibrée. **Forte expose la suppression
 - Callback C++ réel vers moteur Rust via FFI, sur 300 blocs simulés : framing, silence immédiat, préservation et détection d'indice invalide.
 - Événements natifs : reset, changement de fréquence, notification de latence seule, priorité de l'arrêt et combinaison des routes Auto actives/inactives/inconnues.
 - Processus caché recevant M/B/A/T/Q par le même pipe que le menu de notification. Contrôles natifs réels, diagnostics et arrêt propre vérifiés, sans périphérique audio.
-- Interface anglaise/française : dispositions et canaux, édition, valeurs par défaut Auto/Forte, réglage 44,1 kHz et arguments du moteur, migration, modes sélectionnés, verrouillage audio, thèmes, métadonnées de mise à jour, sommes de contrôle, chemins sûrs et restauration après échec de copie.
+- Interface anglaise/française : dispositions et canaux, édition, valeurs par défaut Auto/Forte, réglage 44,1 kHz et arguments du moteur, options indépendantes de démarrage du moteur à l'ouverture normale et à la connexion Windows, migration, modes sélectionnés, verrouillage audio, thèmes, métadonnées de mise à jour, sommes de contrôle, chemins sûrs et restauration après échec de copie.
 - Nouveaux tests du lanceur : analyse des états réels, refus des messages prématurés de démarrage, code natif 14 et éligibilité à la reprise via un processus enfant, conservation du dernier mode demandé et rotation de journaux temporaires.
 - Transmission des quatre modes lors des mises à jour ; ancien lanceur sans mode repris en Silence. Tests natifs de Banana sans GainLayer, gains Potato, routes muettes, pondérations relatives, correspondance des canaux, sources fortes simultanées et fondu vers une référence nulle.
 - Les chemins locaux du compilateur sont remappés ; les archives publiques sont contrôlées pour exclure comptes locaux, réglages, raccourcis, journaux personnels et dossiers de compilation.
 
 ## Mesures audio
 
-La compilation et les tests 1.3.0 n'ouvrent aucun pilote audio et ne modifient pas le démarrage Windows. Les niveaux sont transmis toutes les 100 ms sans être stockés dans le journal. Le routage est lu toutes les 200 ms, puis les pondérations suivent un fondu de 10 ms. Le mix suit les routes et les gains ; l'EQ, le panoramique, le downmix surround et les effets non linéaires ne sont pas reconstruits. La pondération n'a pas encore fait l'objet d'une validation acoustique réelle.
+La compilation et les tests 1.3.1 n'ouvrent aucun pilote audio et ne modifient pas le démarrage Windows. Les niveaux sont transmis toutes les 100 ms sans être stockés dans le journal. Le routage est lu toutes les 200 ms, puis les pondérations suivent un fondu de 10 ms. Le mix suit les routes et les gains ; l'EQ, le panoramique, le downmix surround et les effets non linéaires ne sont pas reconstruits. La pondération n'a pas encore fait l'objet d'une validation acoustique réelle.
 
 Chaque scénario déterministe dure 48 secondes à 48 kHz : deux références indépendantes de bruit coloré, trois trajets d'écho filtrés, signal proche entre 20 et 30 secondes, délai acoustique passant de 50 à 90 ms à 30 secondes, référence retirée à 46 secondes. Le signal proche utilise des harmoniques modulées ou du bruit coloré indépendant, pas de voix humaine enregistrée. D'autres graines utilisent des niveaux proches à 0,5x et 1,5x.
 

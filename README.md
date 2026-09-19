@@ -38,13 +38,15 @@ The app detects the running VoiceMeeter edition and shows only its real mixer la
 
 VoiceMeeter at **48 kHz is recommended** and runs without sample-rate conversion. If an existing setup must remain at 44.1 kHz, enable **Advanced → Allow 44.1 kHz compatibility resampling**. The app will show the detected rate and explain what to change if startup is blocked.
 
-Your normal controls remain available from the window and the system tray: **Auto, AEC on, Bypass, and Mute**. Closing the window keeps the app in the notification area; left-click its icon to reopen it or use its menu to exit. Settings save automatically. Under **Advanced**, Windows startup and automatic engine startup are separate options. The app can also check the latest stable GitHub release at most once a day and asks before installing anything.
+Your normal controls remain available from the window and the system tray: **Auto, AEC on, Bypass, and Mute**. Closing the window keeps the app in the notification area; left-click its icon to reopen it or use its menu to exit. Settings save automatically. Under **Advanced → Automatic start**, you can start echo cancellation whenever you open the app, and control Windows sign-in launch separately. The app can also check the latest stable GitHub release at most once a day and asks before installing anything.
 
 | Banana layout | Integrated setup guide |
 |:---:|:---:|
 | ![Banana setup](docs/images/app-setup-banana.png) | ![Integrated setup guide](docs/images/app-guide.png) |
 
 ![Advanced settings](docs/images/app-advanced.png)
+
+![Automatic start settings](docs/images/app-advanced-startup.png)
 
 > Before stopping the audio engine or removing the app, disable the microphone’s PATCH INSERT returns. If setup ever leaves the microphone silent, disabling those two returns immediately restores VoiceMeeter’s direct signal path.
 
@@ -65,7 +67,7 @@ The app intentionally reads VoiceMeeter routing without changing it. This protec
 | Playback reference | One or more strips; VAIO and AUX are common choices, plus VAIO3 on Potato |
 | AEC modes | Auto, always on, bypass, mute |
 | Suppression | Strong by default for new setups; Gentle and Balanced remain available |
-| Startup | Optional Windows sign-in launch, with a separate automatic engine-start toggle |
+| Startup | Optional engine start on normal app launch; separate Windows sign-in app and engine switches |
 
 The reference must contain all audio played by your speakers and exclude the microphone. Select every relevant playback column; the engine combines their stereo pairs before AEC processing. See [Reference setup](GUIDE-EN.md#reference-the-sound-to-cancel) for details.
 
