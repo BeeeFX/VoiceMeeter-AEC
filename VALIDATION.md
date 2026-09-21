@@ -1,6 +1,6 @@
-# VoiceMeeter AEC 1.3.1 — validation
+# VoiceMeeter AEC 1.3.2 — validation
 
-[English](VALIDATION-EN.md) · Version 1.3.1
+[English](VALIDATION-EN.md) · Version 1.3.2
 
 Les contrôles passent pour Douce et Équilibrée. **Forte expose la suppression d'origine, plus agressive, et échoue à certains critères de préservation du signal proche.** Des tests synthétiques réussis ne prouvent ni une voix transparente ni une stabilité de production.
 
@@ -18,7 +18,7 @@ Les contrôles passent pour Douce et Équilibrée. **Forte expose la suppression
 
 ## Mesures audio
 
-La compilation et les tests 1.3.1 n'ouvrent aucun pilote audio et ne modifient pas le démarrage Windows. Les niveaux sont transmis toutes les 100 ms sans être stockés dans le journal. Le routage est lu toutes les 200 ms, puis les pondérations suivent un fondu de 10 ms. Le mix suit les routes et les gains ; l'EQ, le panoramique, le downmix surround et les effets non linéaires ne sont pas reconstruits. La pondération n'a pas encore fait l'objet d'une validation acoustique réelle.
+La compilation et les tests 1.3.2 n'ouvrent aucun pilote audio et ne modifient pas le démarrage Windows. Les niveaux sont transmis toutes les 100 ms sans être stockés dans le journal. Le routage est lu toutes les 200 ms, puis les pondérations suivent un fondu de 10 ms. Le mix suit les routes et les gains ; l'EQ, le panoramique, le downmix surround et les effets non linéaires ne sont pas reconstruits. La pondération n'a pas encore fait l'objet d'une validation acoustique réelle.
 
 Chaque scénario déterministe dure 48 secondes à 48 kHz : deux références indépendantes de bruit coloré, trois trajets d'écho filtrés, signal proche entre 20 et 30 secondes, délai acoustique passant de 50 à 90 ms à 30 secondes, référence retirée à 46 secondes. Le signal proche utilise des harmoniques modulées ou du bruit coloré indépendant, pas de voix humaine enregistrée. D'autres graines utilisent des niveaux proches à 0,5x et 1,5x.
 
@@ -40,7 +40,7 @@ Le framing ajoute exactement 10 ms : 480 échantillons à 48 kHz ou 441 échanti
 
 Reset/resync ou absence de callbacks pendant deux secondes : deux reprises possibles, après 250 ms puis 1 s, mode et profil conservés. Arrêt explicite et défauts de format/tampon/fréquence ne sont pas retentés. Les notifications de latence actualisent les diagnostics sans reset. Une reprise peut couper l'audio et impose une nouvelle adaptation.
 
-Le démarrage à la connexion attend VoiceMeeter et retente certains échecs initiaux pendant au plus 90 secondes, indépendamment de la reprise native. Les tests de sauvegarde/raccourci utilisent un dossier isolé sans modifier le démarrage du poste de développement. Le processus utilise CreateNoWindow avec entrées/sorties redirigées. Le démarrage normal n'a pas de console ; le lancement CLI direct en conserve une. Journaux texte limités par rotation à environ 2 Mio plus un segment précédent, sans audio enregistré.
+Le démarrage à la connexion attend VoiceMeeter et retente certains échecs initiaux pendant au plus trois minutes, indépendamment de la reprise native. Les tests de sauvegarde/raccourci utilisent un dossier isolé sans modifier le démarrage du poste de développement. Le processus utilise CreateNoWindow avec entrées/sorties redirigées. Le démarrage normal n'a pas de console ; le lancement CLI direct en conserve une. Journaux texte limités par rotation à environ 2 Mio plus un segment précédent, sans audio enregistré.
 
 ## Validation réelle restante
 

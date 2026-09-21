@@ -1,6 +1,6 @@
 # VoiceMeeter AEC — Windows x64 setup
 
-[Français](GUIDE-FR.md) · Version 1.3.1 · Windows x64 · VoiceMeeter Banana or Potato
+[Français](GUIDE-FR.md) · Version 1.3.2 · Windows x64 · VoiceMeeter Banana or Potato
 
 VoiceMeeter AEC attenuates speaker playback picked up by a microphone. It processes the microphone through the matching **VoiceMeeter Banana or Potato Insert Virtual ASIO** driver, before VoiceMeeter strip effects. VoiceMeeter retains control of the hardware. The app does not change routes, patch settings or Windows default devices.
 
@@ -85,9 +85,9 @@ Native 48 kHz remains recommended and uses no sample-rate conversion. If VoiceMe
 
 Closing the window always keeps VoiceMeeter AEC running in the notification area, whether the audio engine is active or stopped. Left-click the custom icon once or reopen **VoiceMeeter AEC.exe** to restore the window. Right-click for AEC, Bypass, Mute, Auto, Diagnostics and Exit. Use **Exit** there to close the app completely. Diagnostics are English in both languages. The icon tooltip shows status; Windows may place it under the hidden-icons arrow.
 
-Settings save automatically. After testing, choose Auto or the desired starting mode under **Advanced**. Enable **Start echo cancellation when I open the app** to start the engine automatically on normal launches; the app waits up to 90 seconds for VoiceMeeter and uses the saved mode and settings. The option is off by default. **Start VoiceMeeter AEC when I sign in to Windows** separately opens the app hidden at sign-in, and its **Start the engine automatically after sign-in** option controls engine startup in that case. Configure VoiceMeeter separately to start and restore the tested sample rate and insert routing. If VoiceMeeter runs at 44.1 kHz, enable its compatibility option too; otherwise the engine cannot start.
+Settings save automatically. After testing, choose Auto or the desired starting mode under **Advanced**. Enable **Start echo cancellation when I open the app** to start the engine automatically on normal launches; the app waits up to three minutes for VoiceMeeter and uses the saved mode and settings. The option is off by default. **Start VoiceMeeter AEC when I sign in to Windows** separately opens the app hidden at sign-in, and its **Start the engine automatically after sign-in** option controls engine startup in that case. Configure VoiceMeeter separately to start and restore the tested sample rate and insert routing. If VoiceMeeter runs at 44.1 kHz, enable its compatibility option too; otherwise the engine cannot start.
 
-It waits up to 90 seconds for VoiceMeeter and retries selected initial driver failures at five-second intervals. Failure is reported through the tray. It does not endlessly restart after a crash; native driver reset/stall recovery stays limited to two attempts. A driver call that itself hangs may exceed the startup waiting deadline.
+It waits up to three minutes for VoiceMeeter and retries selected initial driver failures at five-second intervals. Failure is reported through the tray. It does not endlessly restart after a crash; native driver reset/stall recovery stays limited to two attempts. A driver call that itself hangs may exceed the startup waiting deadline.
 
 Settings are in `%LOCALAPPDATA%\VoiceMeeterAEC\settings.json`: VoiceMeeter edition preference, selected columns, Auto scope, speaker bus, timing, starting mode, suppression and language. They save automatically. Changes that affect engine startup apply the next time the engine starts; disable PATCH INSERT, stop, and reopen it first.
 

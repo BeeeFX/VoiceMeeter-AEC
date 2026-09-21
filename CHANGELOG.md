@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.2 — tolerate VoiceMeeter driver initialization at sign-in
+
+- Wait up to three minutes for automatic startup, retrying every five seconds when initial driver configuration, sample-rate validation or buffer creation fails. A running VoiceMeeter process is not proof that its audio driver is ready.
+- Keep retries bounded and restricted to startup before audio callbacks arrive. Manual stops, permanent setup errors and recovery after a running session retain their existing behavior. Saved sample-rate and suppression settings are unchanged.
+- Record timestamped launch, wait, retry, failure and callback confirmation details in a rotating startup.log; timestamp engine diagnostics too. Report a driver-readiness timeout instead of incorrectly asking users to open an already running VoiceMeeter.
+- Add retry-policy regression checks. Actual Windows sign-in remains to be verified after updating; this release addresses a confirmed code weakness, not a proven diagnosis of every startup failure.
+
 ## 1.3.1 — optional engine start when opening the app
 
 - Add a saved **Start echo cancellation when I open the app** switch under Advanced → Automatic start. Normal launches, including reopening an existing tray instance from its shortcut, wait for VoiceMeeter and start the engine in the saved mode with saved audio settings.

@@ -39,6 +39,16 @@ public sealed class AppSettings
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VoiceMeeterAEC");
     public static string SettingsPath => Path.Combine(DataDirectory, "settings.json");
     public static string LogPath => Path.Combine(DataDirectory, "engine.log");
+    internal static void LogStartup(string message)
+    {
+        try
+        {
+            using var log = new RotatingEngineLog(Path.Combine(DataDirectory, "startup.log"));
+            log.WriteLine($"{DateTimeOffset.Now:O} {message}");
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
     private static string LegacyStartupPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.Startup), "VoiceMeeter AEC.lnk");
 

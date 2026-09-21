@@ -127,6 +127,7 @@ public partial class MainWindow : Window
         ["Leave both at zero unless you are correcting a measured alignment problem."] = "Laissez les deux valeurs à zéro sauf pour corriger un décalage mesuré.",
         ["Microphone hold"] = "Retard réel du microphone",
         ["AEC delay estimate"] = "Estimation du délai AEC",
+        ["Automatic startup timed out. VoiceMeeter or its audio driver was not ready. See startup.log for details."] = "Le démarrage automatique a expiré. VoiceMeeter ou son pilote audio n’était pas prêt. Consultez startup.log pour les détails.",
         ["44.1 kHz compatibility"] = "Compatibilité 44,1 kHz",
         ["48 kHz is recommended and uses no sample-rate conversion."] = "48 kHz est recommandé et n’utilise aucune conversion de fréquence.",
         ["Allow 44.1 kHz compatibility resampling"] = "Autoriser le rééchantillonnage de compatibilité à 44,1 kHz",
@@ -728,6 +729,7 @@ public partial class MainWindow : Window
             UpdateStatusVisual(status);
             if (_startupPending && _engine.EverRunning)
             {
+                AppSettings.LogStartup($"Audio callbacks confirmed; sample rate {_engine.SampleRate} Hz; status {status}.");
                 _startupPending = false;
                 _startupTimer?.Stop();
             }
@@ -736,11 +738,16 @@ public partial class MainWindow : Window
         _engine.ConfigurationChanged += () => Dispatcher.BeginInvoke(UpdateSampleRateStatus);
         _engine.Exited += code => Dispatcher.BeginInvoke(() =>
         {
+            if (_startupPending)
+                AppSettings.LogStartup($"Engine exited: code {code}; sample rate {_engine.SampleRate} Hz; callbacks {_engine.EverRunning}. {_engine.Diagnostics}");
             _stopConfirmation?.TrySetResult(false);
             EngineButton.Content = T("Start echo cancellation");
             SetModeButtons(false);
             if (EngineHost.ShouldRetryStartup(_startupPending, _engine.EverRunning, code, _startupDeadline))
+            {
+                AppSettings.LogStartup("Driver not ready; retrying at the next five-second check.");
                 return;
+            }
             if (code != 0)
             {
                 _startupPending = false;
@@ -984,6 +991,7 @@ public partial class MainWindow : Window
         SaveSettingsNow();
         if (_arguments.Contains("--startup"))
         {
+            AppSettings.LogStartup($"Windows sign-in launch: {Environment.ProcessPath}; automatic engine start {_settings.StartEngineWithWindows}.");
             Hide();
             if (ShouldStartEngineOnLaunch(_arguments, _settings)) BeginStartupWait();
         }
@@ -1332,7 +1340,8 @@ public partial class MainWindow : Window
     {
         if (_startupPending || _engine.Alive) return;
         _startupPending = true;
-        _startupDeadline = DateTime.Now.AddSeconds(90);
+        _startupDeadline = DateTime.Now.AddMinutes(3);
+        AppSettings.LogStartup("Automatic startup requested; waiting up to three minutes for VoiceMeeter and its audio driver.");
         _startupTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _startupTimer.Tick += (_, _) => TryStartup();
         _startupTimer.Start();
@@ -1344,6 +1353,7 @@ public partial class MainWindow : Window
 
     private void CancelStartupWait()
     {
+        if (_startupPending) AppSettings.LogStartup("Automatic startup cancelled by user action.");
         _startupPending = false;
         _startupTimer?.Stop();
         _startupTimer = null;
@@ -1360,15 +1370,22 @@ public partial class MainWindow : Window
         {
             _startupPending = false;
             _startupTimer?.Stop();
-            UpdateStatusVisual("stopped");
-            _balloonPage = "setup";
-            _tray?.ShowBalloonTip(5000, "VoiceMeeter AEC", string.Format(T("Please start VoiceMeeter {0} first, then try again."), _settings.VoiceMeeterEdition == "auto" ? "Banana or Potato" : _layout.DisplayName), WinForms.ToolTipIcon.Warning);
+            AppSettings.LogStartup($"Automatic startup timed out; engine alive {_engine.Alive}; sample rate {_engine.SampleRate} Hz. {_engine.Diagnostics}");
+            if (!_engine.Alive) UpdateStatusVisual("stopped");
+            DiagnosticsBox.Text = T("Automatic startup timed out. VoiceMeeter or its audio driver was not ready. See startup.log for details.") + Environment.NewLine + _engine.Diagnostics;
+            _balloonPage = "diagnostics";
+            _tray?.ShowBalloonTip(7000, "VoiceMeeter AEC", T("Automatic startup timed out. VoiceMeeter or its audio driver was not ready. See startup.log for details."), WinForms.ToolTipIcon.Warning);
             return;
         }
         if (_engine.Alive) return;
         var running = _settings.VoiceMeeterEdition == "auto" ? MixerLayout.DetectRunning() : MixerLayout.IsRunning(_layout) ? _layout : null;
-        if (running is null) return;
+        if (running is null)
+        {
+            AppSettings.LogStartup("Waiting for the selected VoiceMeeter process.");
+            return;
+        }
         if (running != _layout) ChangeLayout(running);
+        AppSettings.LogStartup($"VoiceMeeter {running.DisplayName} detected; attempting engine start.");
         StartEngine(true);
     }
 
@@ -1407,6 +1424,7 @@ public partial class MainWindow : Window
         }
         catch (Exception exception)
         {
+            if (_startupPending) AppSettings.LogStartup("Engine launch exception: " + exception);
             DiagnosticsBox.Text = exception + Environment.NewLine + _engine.Diagnostics;
             ShowPage("diagnostics");
             if (!quiet)

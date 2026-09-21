@@ -1,6 +1,6 @@
-# VoiceMeeter AEC 1.3.1 — validation
+# VoiceMeeter AEC 1.3.2 — validation
 
-[Français](VALIDATION.md) · Version 1.3.1
+[Français](VALIDATION.md) · Version 1.3.2
 
 The automated checks pass for Gentle and Balanced. **Strong deliberately exposes the original, more aggressive suppressor and fails some near-end preservation checks.** Passing synthetic tests does not establish transparent speech or production stability.
 
@@ -38,9 +38,9 @@ Framing adds exactly 10 ms: 480 samples at 48 kHz or 441 samples at 44.1 kHz, pl
 
 Driver reset/resync or a two-second callback stall permits two retries (250 ms, then 1 s), with mode and profile preserved. Explicit quit and invalid format/buffer/sample-rate faults are not retried. Latency notifications refresh diagnostics without resetting audio. Recovery can interrupt audio and requires echo readaptation.
 
-Sign-in startup waits for VoiceMeeter and retries selected initial driver failures for up to 90 seconds. This is separate from native recovery. Settings and shortcut tests use an isolated directory; the development machine's startup registration is not modified. The process wrapper uses CreateNoWindow and redirected stdin/stdout/stderr. Normal startup has no console; a direct CLI launch retains one. Diagnostics rotate at approximately 2 MiB plus one previous segment and contain no recorded audio.
+Sign-in startup waits for VoiceMeeter and retries selected initial driver failures for up to three minutes. This is separate from native recovery. Settings and shortcut tests use an isolated directory; the development machine's startup registration is not modified. The process wrapper uses CreateNoWindow and redirected stdin/stdout/stderr. Normal startup has no console; a direct CLI launch retains one. Diagnostics rotate at approximately 2 MiB plus one previous segment and contain no recorded audio.
 
-The 1.3.1 build and desktop checks open no audio driver and do not change Windows startup registration. Meter telemetry is emitted every 100 ms and excluded from disk logs. Route weights are polled every 200 ms and faded over 10 ms inside the callback using a bounded atomic snapshot. The speaker-reference mix follows routing and gains; downstream EQ, panning, surround downmix and nonlinear speaker effects are not reconstructed. These integration checks do not constitute live acoustic validation of the new reference weighting.
+The 1.3.2 build and desktop checks open no audio driver and do not change Windows startup registration. Meter telemetry is emitted every 100 ms and excluded from disk logs. Route weights are polled every 200 ms and faded over 10 ms inside the callback using a bounded atomic snapshot. The speaker-reference mix follows routing and gains; downstream EQ, panning, surround downmix and nonlinear speaker effects are not reconstructed. These integration checks do not constitute live acoustic validation of the new reference weighting.
 
 ## Remaining real-world validation
 

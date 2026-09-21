@@ -114,7 +114,7 @@ public sealed class EngineHost : IDisposable
         }
         _lines.Enqueue(line);
         while (_lines.Count > 400) _lines.TryDequeue(out _);
-        _log?.WriteLine(line);
+        _log?.WriteLine($"{DateTimeOffset.Now:O} {line}");
         DiagnosticsChanged?.Invoke();
         // Configuration summaries and driver->start() are not proof of callbacks.
         if (line.Contains("Retrying the same Insert")) SetStatus("reconnecting");
@@ -150,7 +150,10 @@ public sealed class EngineHost : IDisposable
     }
 
     internal static bool ShouldRetryStartup(bool pending, bool everRunning, int code, DateTime deadline) =>
-        pending && !everRunning && code is 13 or 14 or 20 or 35 && DateTime.Now < deadline;
+        // During sign-in even configuration queries, sample rate and buffer creation
+        // can fail while VoiceMeeter initializes. Retry only before the first audio
+        // callbacks, within the startup window; permanent faults still time out.
+        pending && !everRunning && code is 13 or 14 or 15 or 16 or 19 or 20 or 35 && DateTime.Now < deadline;
 
     internal static async Task RunSelfTestsAsync(string executable)
     {
@@ -195,9 +198,21 @@ public sealed class EngineHost : IDisposable
             var exitCode = await exited.Task.WaitAsync(TimeSpan.FromSeconds(10));
             if (exitCode != 14 || host.Status != "stopped" || host.EverRunning ||
                 !ShouldRetryStartup(true, host.EverRunning, exitCode, DateTime.Now.AddSeconds(90)) ||
-                ShouldRetryStartup(true, true, exitCode, DateTime.Now.AddSeconds(90)) ||
-                ShouldRetryStartup(true, false, 16, DateTime.Now.AddSeconds(90)))
+                ShouldRetryStartup(true, true, exitCode, DateTime.Now.AddSeconds(90)))
                 throw new InvalidOperationException("Initial driver errors do not permit the correct startup retry.");
+
+            foreach (var code in new[] { 13, 14, 15, 16, 19, 20, 35 })
+            {
+                var future = DateTime.Now.AddMinutes(3);
+                if (!ShouldRetryStartup(true, false, code, future) ||
+                    ShouldRetryStartup(false, false, code, future) ||
+                    ShouldRetryStartup(true, true, code, future) ||
+                    ShouldRetryStartup(true, false, code, DateTime.Now.AddSeconds(-1)))
+                    throw new InvalidOperationException("Incorrect bounded startup retry for code " + code);
+            }
+            foreach (var code in new[] { 0, 10, 11, 12, 17, 18, 22 })
+                if (ShouldRetryStartup(true, false, code, DateTime.Now.AddMinutes(3)))
+                    throw new InvalidOperationException("Permanent startup error was retried: " + code);
 
             exited = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
             host.Start(executable, ["--control-self-test"], Path.Combine(temporary, "control.log"));
