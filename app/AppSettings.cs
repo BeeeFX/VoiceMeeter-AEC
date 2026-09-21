@@ -27,6 +27,7 @@ public sealed class AppSettings
     public string Suppression { get; set; } = "strong";
     public int HoldMs { get; set; }
     public int DelayMs { get; set; }
+    public bool AutomaticDelay { get; set; } = true;
     public bool Allow44100Resampling { get; set; }
     public bool StartEngineWhenOpened { get; set; }
     public bool StartWithWindows { get; set; }

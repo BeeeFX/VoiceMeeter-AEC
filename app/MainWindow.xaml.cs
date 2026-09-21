@@ -124,9 +124,11 @@ public partial class MainWindow : Window
         ["Watch these VoiceMeeter columns. AEC turns on when any selected column is routed to your speaker bus."] = "Surveillez ces colonnes VoiceMeeter. L’AEC s’active dès qu’une colonne choisie est envoyée vers le bus des enceintes.",
         ["Watch every playback column routed to the selected A bus"] = "Surveiller toutes les colonnes de lecture envoyées vers le bus A choisi",
         ["Timing"] = "Synchronisation",
-        ["Leave both at zero unless you are correcting a measured alignment problem."] = "Laissez les deux valeurs à zéro sauf pour corriger un décalage mesuré.",
+        ["Keep automatic echo-delay detection on for normal use. Leave microphone hold at zero unless correcting a measured problem."] = "Gardez la détection automatique du délai d’écho activée en usage normal. Laissez le retard du microphone à zéro sauf pour corriger un problème mesuré.",
+        ["Automatically detect echo delay"] = "Détecter automatiquement le délai d’écho",
+        ["Continuously aligns the speaker reference with the echo in your microphone. Uses normal playback; no test sound. Turn off to use the manual delay below. Changes apply on the next engine start."] = "Aligne en continu la référence des enceintes avec l’écho capté par le microphone pendant la lecture normale, sans son de test. Désactivez cette option pour utiliser le délai manuel ci-dessous. Les changements s’appliquent au prochain démarrage du moteur.",
         ["Microphone hold"] = "Retard réel du microphone",
-        ["AEC delay estimate"] = "Estimation du délai AEC",
+        ["Manual echo delay"] = "Délai d’écho manuel",
         ["Automatic startup timed out. VoiceMeeter or its audio driver was not ready. See startup.log for details."] = "Le démarrage automatique a expiré. VoiceMeeter ou son pilote audio n’était pas prêt. Consultez startup.log pour les détails.",
         ["44.1 kHz compatibility"] = "Compatibilité 44,1 kHz",
         ["48 kHz is recommended and uses no sample-rate conversion."] = "48 kHz est recommandé et n’utilise aucune conversion de fréquence.",
@@ -406,6 +408,8 @@ public partial class MainWindow : Window
         WatchAllBox.IsChecked = _settings.WatchAllStrips;
         HoldSlider.Value = _settings.HoldMs;
         DelaySlider.Value = _settings.DelayMs;
+        AutomaticDelayBox.IsChecked = _settings.AutomaticDelay;
+        UpdateDelayControls();
         Resample44100Box.IsChecked = _settings.Allow44100Resampling;
         OpenEngineBox.IsChecked = _settings.StartEngineWhenOpened;
         StartupBox.IsChecked = _settings.StartWithWindows;
@@ -442,6 +446,7 @@ public partial class MainWindow : Window
         _settings.StartMode = SelectedTag(StartModeBox, "auto");
         _settings.HoldMs = (int)Math.Round(HoldSlider.Value);
         _settings.DelayMs = (int)Math.Round(DelaySlider.Value);
+        _settings.AutomaticDelay = AutomaticDelayBox.IsChecked == true;
         _settings.Allow44100Resampling = Resample44100Box.IsChecked == true;
         _settings.StartEngineWhenOpened = OpenEngineBox.IsChecked == true;
         _settings.StartWithWindows = StartupBox.IsChecked == true;
@@ -516,7 +521,15 @@ public partial class MainWindow : Window
         UpdateAutoControls();
         UpdateStartupControls();
         if (ReferenceEquals(sender, Resample44100Box)) UpdateSampleRateStatus();
+        if (ReferenceEquals(sender, AutomaticDelayBox)) UpdateDelayControls();
         QueueSave();
+    }
+
+    private void UpdateDelayControls()
+    {
+        if (AutomaticDelayBox is null || DelaySlider is null) return;
+        DelaySlider.IsEnabled = AutomaticDelayBox.IsEnabled && AutomaticDelayBox.IsChecked != true;
+        DelayLabel.Opacity = DelayValue.Opacity = AutomaticDelayBox.IsChecked == true ? 0.55 : 1;
     }
 
     private void UpdateStartupControls()
@@ -670,9 +683,11 @@ public partial class MainWindow : Window
         AutoHelp.Text = T("Watch these VoiceMeeter columns. AEC turns on when any selected column is routed to your speaker bus.");
         WatchAllBox.Content = T("Watch every playback column routed to the selected A bus");
         TimingHeading.Text = T("Timing");
-        TimingHelp.Text = T("Leave both at zero unless you are correcting a measured alignment problem.");
         HoldLabel.Text = T("Microphone hold");
-        DelayLabel.Text = T("AEC delay estimate");
+        DelayLabel.Text = T("Manual echo delay");
+        TimingHelp.Text = T("Keep automatic echo-delay detection on for normal use. Leave microphone hold at zero unless correcting a measured problem.");
+        AutomaticDelayBox.Content = T("Automatically detect echo delay");
+        AutomaticDelayHelp.Text = T("Continuously aligns the speaker reference with the echo in your microphone. Uses normal playback; no test sound. Turn off to use the manual delay below. Changes apply on the next engine start.");
         SampleRateHeading.Text = T("44.1 kHz compatibility");
         Resample44100Box.Content = T("Allow 44.1 kHz compatibility resampling");
         Resample44100Help.Text = T("Converts the microphone and speaker reference to 48 kHz for AEC, then converts the cleaned microphone back to 44.1 kHz.");
@@ -972,6 +987,11 @@ public partial class MainWindow : Window
             }
             if (_arguments.Contains("--preview-stop-dialog")) StopDialogOverlay.Visibility = Visibility.Visible;
             await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+            if (_arguments.Contains("--preview-timing"))
+            {
+                ((FrameworkElement)TimingHeading.Parent).BringIntoView();
+                await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+            }
             if (_arguments.Contains("--preview-bottom"))
             {
                 if (GuideView.Visibility == Visibility.Visible) GuideView.ScrollToEnd();
@@ -1140,6 +1160,8 @@ public partial class MainWindow : Window
             ["mute"] = MuteModeButton
         };
         SetModeButtons(true);
+        if (AutomaticDelayBox.IsEnabled)
+            throw new InvalidOperationException("Delay mode must stay locked during processing.");
         if (MicStripPanel.IsEnabled || ReferenceStripPanel.IsEnabled || BusPanel.IsEnabled ||
             AutoStripPanel.IsEnabled || SuppressionBox.IsEnabled || MicSideBox.IsEnabled || HoldSlider.IsEnabled || DelaySlider.IsEnabled || Resample44100Box.IsEnabled)
             throw new InvalidOperationException("Audio settings must stay locked while the engine is running.");
@@ -1163,6 +1185,20 @@ public partial class MainWindow : Window
         if (modeButtons.Any(pair => pair.Value.Tag is not null))
             throw new InvalidOperationException("A mode button remains selected while the engine is stopped.");
         SetModeButtons(false);
+        if (!AutomaticDelayBox.IsEnabled || !AutomaticDelayBox.IsChecked.GetValueOrDefault() || DelaySlider.IsEnabled ||
+            !BuildEngineArguments().Contains("--auto-delay"))
+            throw new InvalidOperationException("Automatic delay must be the default and disable the manual slider.");
+        AutomaticDelayBox.IsChecked = false;
+        DelaySlider.Value = 75;
+        if (!DelaySlider.IsEnabled || !BuildEngineArguments().Contains("--manual-delay") || _settings.DelayMs != 75)
+            throw new InvalidOperationException("Manual delay mode did not reach the engine arguments.");
+        var restoredDelay = AppSettings.Parse(System.Text.Json.JsonSerializer.Serialize(_settings), false);
+        if (restoredDelay.AutomaticDelay || restoredDelay.DelayMs != 75 ||
+            !AppSettings.Parse("{}", false).AutomaticDelay)
+            throw new InvalidOperationException("Delay mode persistence or migration failed.");
+        AutomaticDelayBox.IsChecked = true;
+        if (DelaySlider.IsEnabled || DelaySlider.Value != 75)
+            throw new InvalidOperationException("Automatic mode must retain the saved manual delay.");
         if (!MicStripPanel.IsEnabled || !ReferenceStripPanel.IsEnabled || !SuppressionBox.IsEnabled || !Resample44100Box.IsEnabled ||
             AudioSettingsLockText.Visibility != Visibility.Collapsed)
             throw new InvalidOperationException("Audio settings must unlock after stopping.");
@@ -1407,6 +1443,7 @@ public partial class MainWindow : Window
             "--" + (resumeMode ?? _settings.StartMode)
         };
         if (_settings.Allow44100Resampling) result.Add("--allow-44100-resampling");
+        result.Add(_settings.AutomaticDelay ? "--auto-delay" : "--manual-delay");
         return result;
     }
 
@@ -1494,8 +1531,9 @@ public partial class MainWindow : Window
         MuteModeButton.IsEnabled = enabled && !_applyingUpdate;
         var editable = !enabled && !_applyingUpdate;
         foreach (var control in new System.Windows.UIElement[] { EditionBox, MicStripPanel, ReferenceStripPanel,
-                     BusPanel, AutoStripPanel, WatchAllBox, MicSideBox, SuppressionBox, HoldSlider, DelaySlider, Resample44100Box })
+                     BusPanel, AutoStripPanel, WatchAllBox, MicSideBox, SuppressionBox, HoldSlider, DelaySlider, Resample44100Box, AutomaticDelayBox })
             control.IsEnabled = editable;
+        UpdateDelayControls();
         AudioSettingsLockText.Visibility = editable ? Visibility.Collapsed : Visibility.Visible;
         if (!enabled) UpdateModeSelection("stopped");
     }

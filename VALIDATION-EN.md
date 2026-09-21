@@ -1,11 +1,12 @@
-# VoiceMeeter AEC 1.3.2 — validation
+# VoiceMeeter AEC 1.4.0 — validation
 
-[Français](VALIDATION.md) · Version 1.3.2
+[Français](VALIDATION.md) · Version 1.4.0
 
 The automated checks pass for Gentle and Balanced. **Strong deliberately exposes the original, more aggressive suppressor and fails some near-end preservation checks.** Passing synthetic tests does not establish transparent speech or production stability.
 
 ## Automated evidence
 
+- Version 1.4.0 adds a ninth Rust test: synthetic echo delay changes from 40 to 100 ms at both 48 kHz and 44.1 kHz. Automatic alignment follows the change; manual alignment remains fixed; both paths remain finite without DSP errors. Desktop checks cover default/migrated automatic selection, persistence, engine arguments and control locking. This validates reference alignment, not a total hardware-latency measurement.
 - Eight Rust tests cover exact 48 kHz bypass framing across varying callback sizes, 44.1 kHz compatibility framing and AEC processing, bounded hold, missing reference/mute/non-finite input, fades, selective driver recovery, multi-reference parsing, and multi-strip Auto masks including microphone-return exclusions.
 - Native transport tests cover Banana's 22 channels and Potato's 34 channels, double buffers, PCM16/24/32 and float32, preserving unselected channels bit-for-bit.
 - The real C++ callback calls the Rust engine through FFI for 300 simulated blocks; framing, immediate mute, channel preservation and invalid-index detection pass.
@@ -40,7 +41,7 @@ Driver reset/resync or a two-second callback stall permits two retries (250 ms, 
 
 Sign-in startup waits for VoiceMeeter and retries selected initial driver failures for up to three minutes. This is separate from native recovery. Settings and shortcut tests use an isolated directory; the development machine's startup registration is not modified. The process wrapper uses CreateNoWindow and redirected stdin/stdout/stderr. Normal startup has no console; a direct CLI launch retains one. Diagnostics rotate at approximately 2 MiB plus one previous segment and contain no recorded audio.
 
-The 1.3.2 build and desktop checks open no audio driver and do not change Windows startup registration. Meter telemetry is emitted every 100 ms and excluded from disk logs. Route weights are polled every 200 ms and faded over 10 ms inside the callback using a bounded atomic snapshot. The speaker-reference mix follows routing and gains; downstream EQ, panning, surround downmix and nonlinear speaker effects are not reconstructed. These integration checks do not constitute live acoustic validation of the new reference weighting.
+The 1.4.0 build and desktop checks open no audio driver and do not change Windows startup registration. Meter telemetry is emitted every 100 ms and excluded from disk logs. Route weights are polled every 200 ms and faded over 10 ms inside the callback using a bounded atomic snapshot. The speaker-reference mix follows routing and gains; downstream EQ, panning, surround downmix and nonlinear speaker effects are not reconstructed. These integration checks do not constitute live acoustic validation of the new reference weighting.
 
 ## Remaining real-world validation
 

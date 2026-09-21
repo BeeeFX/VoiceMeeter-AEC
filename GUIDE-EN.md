@@ -1,6 +1,6 @@
 # VoiceMeeter AEC — Windows x64 setup
 
-[Français](GUIDE-FR.md) · Version 1.3.2 · Windows x64 · VoiceMeeter Banana or Potato
+[Français](GUIDE-FR.md) · Version 1.4.0 · Windows x64 · VoiceMeeter Banana or Potato
 
 VoiceMeeter AEC attenuates speaker playback picked up by a microphone. It processes the microphone through the matching **VoiceMeeter Banana or Potato Insert Virtual ASIO** driver, before VoiceMeeter strip effects. VoiceMeeter retains control of the hardware. The app does not change routes, patch settings or Windows default devices.
 
@@ -71,7 +71,10 @@ Tray AEC, Bypass and Mute override Auto; choose Auto again to resume. Live contr
 | Balanced | Moderate suppression with better preservation of wanted sound in synthetic tests. |
 | Strong | Default for new setups; original upstream suppression that can heavily attenuate your voice in difficult overlap. Listen before adopting it. |
 | Microphone hold | Adds real microphone delay, 0–250 ms. Normally leave at 0. |
-| AEC delay estimate | A separate timing hint, 0–500 ms. Start at 0; it is not another delay buffer. |
+| Automatically detect echo delay | On by default. AEC3 continuously tracks alignment using normal playback and microphone audio, without a test sound. This tracking was already active internally in earlier releases. |
+| Manual echo delay | Turn automatic detection off to override reference alignment, 0–500 ms. The value is retained while automatic detection is on. This is not another microphone delay buffer. |
+
+Delay mode applies on the next engine start and is locked during processing. Automatic tracking needs a useful speaker reference and audible echo to estimate alignment; it is not a total hardware-latency measurement. CLI: `--auto-delay` is the default; use `--manual-delay --delay-ms N` for an explicit override.
 
 Suppression changes apply when the engine next starts and cannot compensate for a missing or incorrect reference. Gentle and Balanced pass the six synthetic scenarios; Strong fails some near-end preservation criteria. These are experimental profiles, not a guarantee for a room or voice.
 

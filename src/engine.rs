@@ -68,6 +68,15 @@ impl Engine {
         suppression: ResidualSuppression,
         sample_rate: usize,
     ) -> Option<Self> {
+        Self::with_delay_mode(delay, hold_ms, suppression, sample_rate, true)
+    }
+    pub fn with_delay_mode(
+        delay: i32,
+        hold_ms: usize,
+        suppression: ResidualSuppression,
+        sample_rate: usize,
+        automatic_delay: bool,
+    ) -> Option<Self> {
         assert!((0..=500).contains(&delay) && hold_ms <= 250);
         if !(8_000..=384_000).contains(&sample_rate) || sample_rate % 100 != 0 {
             return None;
@@ -79,6 +88,7 @@ impl Engine {
                 ..Default::default()
             },
             echo_canceller: Some(EchoCanceller {
+                automatic_delay,
                 enforce_high_pass_filtering: false,
                 residual_suppression: suppression,
                 ..Default::default()
@@ -187,6 +197,37 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn automatic_delay_tracks_changes_while_manual_alignment_stays_fixed() {
+        for rate in [48_000, 44_100] {
+            let mut automatic = Engine::with_delay_mode(0, 0, ResidualSuppression::Gentle, rate, true).unwrap();
+            let mut manual = Engine::with_delay_mode(40, 0, ResidualSuppression::Gentle, rate, false).unwrap();
+            let mut history = vec![0f32; rate];
+            let mut seed = 91u32;
+            let mut first_auto = 0;
+            let mut first_manual = 0;
+            for i in 0..rate * 16 {
+                seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+                let reference = ((seed >> 8) as f32 / 8388608. - 1.) * 0.2;
+                let delay = rate * if i < rate * 8 { 40 } else { 100 } / 1000;
+                let microphone = history[(i + rate - delay) % rate] * 0.5;
+                history[i % rate] = reference;
+                assert!(automatic.tick(microphone, reference, reference, 0).is_finite());
+                assert!(manual.tick(microphone, reference, reference, 0).is_finite());
+                if i == rate * 8 - 1 {
+                    first_auto = automatic.apm.statistics().delay_ms.unwrap();
+                    first_manual = manual.apm.statistics().delay_ms.unwrap();
+                }
+            }
+            let last_auto = automatic.apm.statistics().delay_ms.unwrap();
+            let last_manual = manual.apm.statistics().delay_ms.unwrap();
+            assert!((20..=60).contains(&first_auto), "initial alignment {first_auto} at {rate}");
+            assert!((80..=120).contains(&last_auto), "changed alignment {last_auto} at {rate}");
+            assert_eq!(first_manual, last_manual, "manual alignment drifted at {rate}");
+            assert!((20..=60).contains(&last_manual));
+            assert_eq!(automatic.errors + manual.errors, 0);
+        }
+    }
     #[test]
     fn transitions_and_unmute_are_bounded() {
         let mut ramp = Ramp::new(0.);

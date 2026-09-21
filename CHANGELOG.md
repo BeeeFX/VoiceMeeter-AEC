@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0 — explicit automatic echo-delay control
+
+- Add **Automatically detect echo delay** under Advanced → Timing. It is on by default, including for existing settings, and exposes the AEC3 tracking already active in earlier releases.
+- Turning it off selects manual reference alignment using the saved 0–500 ms delay. Earlier releases supplied this value without selecting the external-delay path; the slider now actually controls alignment. The manual value is retained while automatic tracking is selected.
+- Apply the choice consistently to mono/stereo AEC and driver recovery. The toggle is saved and locked while the engine runs. CLI users can select `--auto-delay` (default) or `--manual-delay --delay-ms N`.
+- Test automatic tracking across a 40 → 100 ms echo-path change at both 48 kHz and 44.1 kHz, with fixed manual alignment as a control. Automatic mode uses ordinary playback and adds no microphone hold or calibration sound. It does not measure total hardware latency or guarantee better acoustic performance.
+
 ## 1.3.2 — tolerate VoiceMeeter driver initialization at sign-in
 
 - Wait up to three minutes for automatic startup, retrying every five seconds when initial driver configuration, sample-rate validation or buffer creation fails. A running VoiceMeeter process is not proof that its audio driver is ready.

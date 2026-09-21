@@ -177,6 +177,8 @@ pub enum ResidualSuppression { Standard, Balanced, Gentle }
 /// Echo canceller (AEC3) settings.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EchoCanceller {
+    /// Track render/capture alignment internally; false uses the supplied stream delay.
+    pub automatic_delay: bool,
     /// Local VoiceMeeter AEC extension: prefer near-end preservation over
     /// aggressive residual suppression. Does not disable adaptive cancellation.
     pub residual_suppression: ResidualSuppression,
@@ -195,6 +197,7 @@ impl Default for EchoCanceller {
     fn default() -> Self {
         Self {
             enforce_high_pass_filtering: true,
+            automatic_delay: true,
             residual_suppression: ResidualSuppression::Standard,
             transparent_mode: TransparentModeType::default(),
         }

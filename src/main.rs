@@ -39,7 +39,8 @@ unsafe extern "C" fn aec_create(
         2 => ResidualSuppression::Gentle,
         _ => ResidualSuppression::Standard,
     };
-    Engine::with_sample_rate(delay_ms, hold_ms.max(0) as usize, profile, sample_rate.max(0) as usize)
+    // -1 selects AEC3's built-in estimator; nonnegative values select manual alignment.
+    Engine::with_delay_mode(delay_ms.max(0), hold_ms.max(0) as usize, profile, sample_rate.max(0) as usize, delay_ms < 0)
         .map(|engine| Box::into_raw(Box::new(engine)).cast())
         .unwrap_or(std::ptr::null_mut())
 }
@@ -177,6 +178,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
     let mut edition = Edition::Potato;
     let mut suppression = ResidualSuppression::Standard;
     let mut allow_44100_resampling = false;
+    let mut automatic_delay = true;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -186,6 +188,8 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
             "--auto" => mode = 3,
             "--aec" => mode = 0,
             "--allow-44100-resampling" => allow_44100_resampling = true,
+            "--auto-delay" => automatic_delay = true,
+            "--manual-delay" => automatic_delay = false,
             "--mic" | "--ref" | "--returns" | "--delay-ms" | "--hold-ms" | "--seconds"
             | "--suppression" | "--auto-strip" | "--auto-strips" | "--auto-bus" | "--edition" => {
                 let key = &args[i];
@@ -249,6 +253,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
         10 + hold
     );
     println!("Residual suppression: {suppression:?} (Standard = Strong / upstream)");
+    println!("Echo delay alignment: {}", if automatic_delay { "automatic (AEC3 tracking)" } else { "manual (--delay-ms)" });
     let auto_strips = auto_strips.unwrap_or_else(|| edition.default_playback_strip().to_string());
     let auto_mask = auto_strip_mask(&auto_strips, &returns, edition)?;
     println!(
@@ -284,7 +289,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
                 auto_mask,
                 auto_bus - 1,
                 edition.native_code(),
-                delay,
+                if automatic_delay { -1 } else { delay },
                 hold,
                 suppression_code(suppression),
                 i32::from(allow_44100_resampling),

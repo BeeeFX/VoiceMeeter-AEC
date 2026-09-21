@@ -265,7 +265,9 @@
             <Border Style="{StaticResource Card}" Margin="0,0,0,16">
               <StackPanel>
                 <TextBlock x:Name="TimingHeading" Text="Timing" FontSize="16" FontWeight="SemiBold" />
-                <TextBlock x:Name="TimingHelp" Text="Leave both at zero unless you are correcting a measured alignment problem." Foreground="{DynamicResource MutedInk}" Margin="0,5,0,16" />
+                <TextBlock x:Name="TimingHelp" Text="Keep automatic echo-delay detection on for normal use. Leave microphone hold at zero unless correcting a measured problem." Foreground="{DynamicResource MutedInk}" TextWrapping="Wrap" Margin="0,5,0,16" />
+                <CheckBox x:Name="AutomaticDelayBox" Content="Automatically detect echo delay" Margin="0,0,0,6" Checked="SettingChanged" Unchecked="SettingChanged" />
+                <TextBlock x:Name="AutomaticDelayHelp" Text="Continuously aligns the speaker reference with the echo in your microphone. Uses normal playback; no test sound. Turn off to use the manual delay below. Changes apply on the next engine start." Foreground="{DynamicResource MutedInk}" TextWrapping="Wrap" Margin="0,0,0,16" />
                 <Grid>
                   <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="52" /></Grid.ColumnDefinitions>
                   <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>

@@ -1280,6 +1280,8 @@ impl AudioProcessingImpl {
         let mut config = EchoCanceller3Config::default();
         config.echo_removal_control.transparent_mode = ec.transparent_mode;
         let mut stereo = EchoCanceller3Config::create_default_multichannel_config();
+        config.delay.use_external_delay_estimator = !ec.automatic_delay;
+        stereo.delay.use_external_delay_estimator = !ec.automatic_delay;
         stereo.echo_removal_control.transparent_mode = ec.transparent_mode;
         if ec.residual_suppression != crate::config::ResidualSuppression::Standard {
             let (transparent, suppress) = match ec.residual_suppression {

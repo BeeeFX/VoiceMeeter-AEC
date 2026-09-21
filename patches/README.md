@@ -14,3 +14,5 @@ The original stationary stress changes from gain 0.119/correlation 0.390/error i
 Gentle and Balanced pass the six deterministic scenarios. Strong fails all three stationary near-end preservation scenarios (including near-end gain approximately 0.001 in the quietest case). It is an optional aggressive tradeoff, not a validated voice-preserving preset. The intermediate Balanced thresholds were selected using this synthetic suite; passing it is not independent evidence of real-speech quality. Raw measurements for each profile are in `docs/self-test-0.1.3-*.txt`.
 
 All original license and attribution files are retained. This patch should be reviewed independently before proposing an upstream change.
+
+Version 1.4.0 adds `EchoCanceller::automatic_delay` (default true). Both mono and multichannel configurations set `delay.use_external_delay_estimator` to its inverse, allowing an explicit manual stream-delay override. Automatic tracking preserves the earlier behavior. Application regression tests exercise a changing synthetic echo path at 48 kHz and 44.1 kHz and verify that manual alignment stays fixed.
