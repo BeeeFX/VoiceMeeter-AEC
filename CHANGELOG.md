@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.1 — reliability and echo diagnostics
+
+- Log AEC3 health every two seconds in engine.log: current echo delay, its min/max over the interval, ERLE and ERL, the longest gap between audio callbacks, and whether the callback thread joined the Windows Pro Audio scheduler. Window shown/minimised/hidden events are logged alongside, so intermittent echo reports can be matched to delay jumps, scheduling stalls or convergence loss.
+- Run the engine at high priority, opt it out of Windows power throttling and register the driver's callback thread with MMCSS "Pro Audio", so a minimised or hidden app does not slow audio processing.
+- Driver reset recovery no longer runs out over a long session: after a minute of healthy audio, later VoiceMeeter resets get fresh retries instead of stopping the engine permanently after the second one.
+- The engine stops when the desktop app's control pipe closes (crash, kill, sign-out) instead of lingering and blocking the next start with "already running".
+- Detect the 64-bit VoiceMeeter executables (`voicemeeter8x64`, `voicemeeterpro_x64`) and locate VoicemeeterRemote64.dll from VoiceMeeter's install entry instead of assuming the default folder.
+- Show silence between speakers as a neutral "Auto · idle (no playback)" instead of an orange "No reference · bypass"; the tray icon no longer redraws on every pause.
+- While the window is hidden or minimised, skip meter, status and diagnostics redraws (previously ten UI updates a second and a 400-line diagnostics rebuild every two seconds).
+
 ## 1.4.0 — explicit automatic echo-delay control
 
 - Add **Automatically detect echo delay** under Advanced → Timing. It is on by default, including for existing settings, and exposes the AEC3 tracking already active in earlier releases.

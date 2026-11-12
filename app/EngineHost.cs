@@ -228,6 +228,9 @@ public sealed class EngineHost : IDisposable
         finally { Directory.Delete(temporary, true); }
     }
 
+    /// <summary>Records a desktop-app event in engine.log so it lines up with engine timing.</summary>
+    public void LogEvent(string message) => _log?.WriteLine($"{DateTimeOffset.Now:O} app: {message}");
+
     private void SetStatus(string status) { Status = status; StatusChanged?.Invoke(status); }
     private void DisposeProcess()
     {

@@ -3,6 +3,7 @@
 #define NOMINMAX
 #include <windows.h>
 #include <objbase.h>
+#include <avrt.h>
 #include "iasiodrv.h"
 #include <atomic>
 #include <vector>
@@ -14,6 +15,8 @@
 #include <chrono>
 #include <cstdint>
 #include <array>
+#include <climits>
+#include <string>
 extern "C" void aec_block(void*,const float*,const float*,const float*,float*,size_t,int,float*);
 extern "C" void* aec_create(int,int,int,int);
 extern "C" void aec_destroy(void*);
@@ -31,6 +34,12 @@ std::atomic<int> mode{0},fault{0};
 std::atomic<uint64_t> callbacks{0},overruns{0},max_us{0};
 std::atomic<float> micpeak{0},refpeak{0},missing{0},errors{0};
 std::atomic<float> dsp_failed{0};
+// AEC3 health, published by the callback and logged by the control thread.
+std::atomic<int> aec_delay{-1};std::atomic<float> aec_erle{0},aec_erl{0};
+// Largest interval between consecutive callback starts since the last log line.
+std::atomic<uint64_t> max_gap_us{0};std::atomic<int> mmcss_state{0};
+std::chrono::steady_clock::time_point last_callback{};
+thread_local bool mmcss_attempted=false;
 // The control thread publishes normalized weights. The callback never calls Remote.
 std::array<std::atomic<float>,34> published_weights{};
 std::atomic<unsigned> weights_version{0};
@@ -64,6 +73,7 @@ std::atomic<bool> latency_dirty{false};
 void reset_session_state(int initial){
  fault=0;quitting=false;callbacks=0;overruns=0;max_us=0;micpeak=0;refpeak=0;missing=0;errors=0;dsp_failed=0;
  busy.clear();ready=false;latency_dirty=false;mode=initial==3?0:initial;
+ aec_delay=-1;aec_erle=0;aec_erl=0;max_gap_us=0;mmcss_state=0;last_callback={};
 }
 int completion_code(bool cancelled,int driver_fault){return cancelled?0:driver_fault?30+driver_fault:0;}
 // The launcher owns an anonymous stdin pipe. Never block the ASIO control loop.
@@ -71,7 +81,13 @@ int read_control(){
  HANDLE input=GetStdHandle(STD_INPUT_HANDLE);
  if(GetFileType(input)==FILE_TYPE_PIPE){
   DWORD available=0,read=0;char c=0;
-  if(PeekNamedPipe(input,nullptr,0,nullptr,&available,nullptr)&&available&&ReadFile(input,&c,1,&read,nullptr)&&read==1)return c;
+  if(!PeekNamedPipe(input,nullptr,0,nullptr,&available,nullptr)){
+   // The desktop app closed or crashed. Do not keep the driver as an orphan that
+   // blocks the next launch with "already running".
+   if(GetLastError()==ERROR_BROKEN_PIPE){std::fprintf(stderr,"Control pipe closed; stopping.\n");return 'q';}
+   return -1;
+  }
+  if(available&&ReadFile(input,&c,1,&read,nullptr)&&read==1)return c;
   return -1;
  }
  return GetFileType(input)==FILE_TYPE_CHAR&&_kbhit()?_getch():-1;
@@ -111,6 +127,13 @@ void process(long index,ASIOBool) {
  if(index<0||index>1){fault=1;return;}
  if(busy.test_and_set(std::memory_order_acquire)){fault=2;return;}
  auto begin=std::chrono::steady_clock::now();
+ // Ask Windows to schedule the driver's callback thread as pro audio, once per thread.
+ if(driver&&!mmcss_attempted){mmcss_attempted=true;DWORD task=0;mmcss_state=AvSetMmThreadCharacteristicsW(L"Pro Audio",&task)?1:-1;}
+ if(last_callback!=std::chrono::steady_clock::time_point{}){
+  auto gap=uint64_t(std::chrono::duration_cast<std::chrono::microseconds>(begin-last_callback).count());
+  if(gap>max_gap_us.load(std::memory_order_relaxed))max_gap_us.store(gap,std::memory_order_relaxed);
+ }
+ last_callback=begin;
  // A bounded snapshot: if publication overlaps this callback, retain the last one.
  auto version=weights_version.load();std::array<float,34> snapshot{};
  if(!(version&1)){
@@ -129,10 +152,11 @@ void process(long index,ASIOBool) {
   leftdata[i]=std::clamp(mixed_left,-1.f,1.f);
   rightdata[i]=std::clamp(mixed_right,-1.f,1.f);
  }
- float stats[5]{};
+ float stats[8]{};
  aec_block(engine,micdata.data(),leftdata.data(),rightdata.data(),clean.data(),size_t(frames),mode.load(),stats);
  transfer(index);if(ready && driver->outputReady()!=ASE_OK)fault=6;
  micpeak=stats[0];refpeak=stats[1];missing=stats[2];errors=stats[3];dsp_failed=stats[4];
+ aec_delay.store(int(stats[5]),std::memory_order_relaxed);aec_erle.store(stats[6],std::memory_order_relaxed);aec_erl.store(stats[7],std::memory_order_relaxed);
  auto us=uint64_t(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-begin).count());
  if(us>max_us.load())max_us=us;if(us*uint64_t(session_rate)>uint64_t(frames)*1000000)overruns++;callbacks++;
  busy.clear(std::memory_order_release);
@@ -147,13 +171,38 @@ long message(long selector,long value,void*,double*) {
 }
 BOOL WINAPI ctrl(DWORD){quitting=true;return TRUE;}
 bool ok(ASIOError e,const char* stage){if(e==ASE_OK)return true;std::fprintf(stderr,"ASIO %s: error %ld\n",stage,long(e));return false;}
+// VoiceMeeter records its install folder in its uninstall entry; fall back to the default.
+std::wstring remote_dll_path(){
+ std::wstring fallback=L"C:\\Program Files (x86)\\VB\\Voicemeeter\\VoicemeeterRemote64.dll";
+ HKEY key=nullptr;
+ if(RegOpenKeyExW(HKEY_LOCAL_MACHINE,L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\VB:Voicemeeter {17359A74-1236-5467}",0,KEY_READ|KEY_WOW64_32KEY,&key)!=ERROR_SUCCESS)return fallback;
+ wchar_t value[1024]{};DWORD size=sizeof(value)-sizeof(wchar_t),type=0;
+ auto status=RegQueryValueExW(key,L"UninstallString",nullptr,&type,reinterpret_cast<BYTE*>(value),&size);RegCloseKey(key);
+ if(status!=ERROR_SUCCESS||(type!=REG_SZ&&type!=REG_EXPAND_SZ))return fallback;
+ std::wstring path(value);
+ if(!path.empty()&&path.front()==L'"'){auto end=path.find(L'"',1);path=path.substr(1,end==std::wstring::npos?std::wstring::npos:end-1);}
+ auto slash=path.find_last_of(L"\\/");if(slash==std::wstring::npos)return fallback;
+ auto candidate=path.substr(0,slash+1)+L"VoicemeeterRemote64.dll";
+ return GetFileAttributesW(candidate.c_str())==INVALID_FILE_ATTRIBUTES?fallback:candidate;
+}
+// Keep the engine responsive while the desktop app is minimised or hidden.
+void prefer_realtime_scheduling(){
+ if(!SetPriorityClass(GetCurrentProcess(),HIGH_PRIORITY_CLASS))std::fprintf(stderr,"Could not raise process priority.\n");
+#ifndef PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION
+#define PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION 0x4
+#endif
+ PROCESS_POWER_THROTTLING_STATE state{};state.Version=PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+ state.ControlMask=PROCESS_POWER_THROTTLING_EXECUTION_SPEED|PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION;state.StateMask=0;
+ bool unthrottled=SetProcessInformation(GetCurrentProcess(),ProcessPowerThrottling,&state,sizeof(state))!=FALSE;
+ std::printf("Scheduling: priority %s; power throttling %s.\n",GetPriorityClass(GetCurrentProcess())==HIGH_PRIORITY_CLASS?"high":"normal",unthrottled?"disabled":"unchanged");
+}
 // Read-only Remote API. Never resolve or call any SetParameter function.
 struct Remote {
  HMODULE dll=nullptr;using Simple=long(__stdcall*)();using Get=long(__stdcall*)(char*,float*);
  Simple logout=nullptr,dirty=nullptr;Get get=nullptr;bool logged=false;int strips=8;
  explicit Remote(int strip_count=8):strips(strip_count){}
  bool open(){
-  dll=LoadLibraryExW(L"C:\\Program Files (x86)\\VB\\Voicemeeter\\VoicemeeterRemote64.dll",nullptr,LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR|LOAD_LIBRARY_SEARCH_SYSTEM32);
+  dll=LoadLibraryExW(remote_dll_path().c_str(),nullptr,LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR|LOAD_LIBRARY_SEARCH_SYSTEM32);
   if(!dll)return false;
   auto login=reinterpret_cast<Simple>(GetProcAddress(dll,"VBVMR_Login"));
   logout=reinterpret_cast<Simple>(GetProcAddress(dll,"VBVMR_Logout"));
@@ -278,10 +327,11 @@ extern "C" int asio_run(int m,uint64_t ref_left,uint64_t ref_right,uint64_t ret,
   for(const auto& buffer:buffers)if(!buffer.buffers[0]||!buffer.buffers[1])valid=false;
   if(!valid){std::fprintf(stderr,"Driver returned a null audio buffer; refusing to start.\n");result=19;break;}
   for(long c=channels;c<channels*2;c++)for(int b=0;b<2;b++)memset(buffers[c].buffers[b],0,size_t(frames)*bytes(formats[c-channels]));
-  ready=driver->outputReady()==ASE_OK;SetConsoleCtrlHandler(ctrl,TRUE);
+  ready=driver->outputReady()==ASE_OK;SetConsoleCtrlHandler(ctrl,TRUE);prefer_realtime_scheduling();
   if(!ok(driver->start(),"start")){result=20;break;}started=true;
   std::puts("Running. A=AEC B=bypass M=mute T=auto Q=quit. Disable PATCH INSERT before Q.");
   auto begin=std::chrono::steady_clock::now(),last=begin,lastauto=begin,laststatus=begin;uint64_t previous=0;int laststate=-2;
+  int delay_min=INT_MAX,delay_max=-1;
   while(!quitting&&!fault){
    if(latency_dirty.exchange(false)){
     long newin=0,newout=0;
@@ -291,6 +341,7 @@ extern "C" int asio_run(int m,uint64_t ref_left,uint64_t ref_right,uint64_t ret,
    apply_control(read_control(),automatic,auto_mask,laststate);
    if(quitting)break;
    auto now=std::chrono::steady_clock::now();
+   if(int d=aec_delay.load(std::memory_order_relaxed);d>=0){delay_min=std::min(delay_min,d);delay_max=std::max(delay_max,d);}
    if(now-lastauto>=std::chrono::milliseconds(200)){
     reference_known=remote.reference_weights(auto_bus);
     if(automatic){
@@ -307,7 +358,10 @@ extern "C" int asio_run(int m,uint64_t ref_left,uint64_t ref_right,uint64_t ret,
    if(seconds>0&&now-begin>=std::chrono::seconds(seconds))break;
    if(now-last>=std::chrono::seconds(2)){
     auto count=callbacks.load();
-    std::printf("mode=%d auto=%d blocks=%llu max=%llu us overruns=%llu mic=%.4f ref=%.4f ref_missing=%d errors=%.0f\n",mode.load(),int(automatic),count,max_us.load(),overruns.load(),micpeak.load(),refpeak.load(),int(missing.load()),errors.load());
+    std::printf("mode=%d auto=%d blocks=%llu max=%llu us overruns=%llu gap_max=%llu us mmcss=%d mic=%.4f ref=%.4f ref_missing=%d errors=%.0f delay=%d delay_min=%d delay_max=%d erle=%.1f erl=%.1f\n",
+     mode.load(),int(automatic),count,max_us.load(),overruns.load(),max_gap_us.exchange(0),mmcss_state.load(),micpeak.load(),refpeak.load(),int(missing.load()),errors.load(),
+     aec_delay.load(),delay_max<0?-1:delay_min,delay_max,aec_erle.load(),aec_erl.load());
+    delay_min=INT_MAX;delay_max=-1;
     if(count==previous){std::fprintf(stderr,"No callback for 2 seconds.\n");fault=5;}previous=count;last=now;
    }Sleep(10);
   }

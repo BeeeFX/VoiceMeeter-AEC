@@ -53,19 +53,23 @@ public partial class MainWindow : Window
     private string UiLanguage => _settings.Language;
     private MixerLayout _layout;
     private string?[] _stripLabels;
+    private string? _visualStatus;
+    private string? _lastWindowState;
+    private bool _diagnosticsStale;
 
     private static readonly Dictionary<string, string> French = new()
     {
         ["Auto · cancelling"] = "Auto · annulation",
         ["Auto · bypass"] = "Auto · bypass",
         ["Auto · routing unavailable"] = "Auto · routage indisponible",
-        ["No reference · bypass"] = "Sans référence · bypass",
+        ["Auto · idle (no playback)"] = "Auto · en veille (aucune lecture)",
+        ["AEC · idle (no playback)"] = "AEC · en veille (aucune lecture)",
         ["DSP error · bypass"] = "Erreur audio · bypass",
         ["Microphone"] = "Microphone",
         ["Speaker reference"] = "Référence haut-parleurs",
         ["Stop the engine before changing audio settings."] = "Arrêtez le moteur avant de modifier les réglages audio.",
         ["Processing failed. The microphone is passing through. Open Diagnostics."] = "Le traitement a échoué. Le microphone passe sans traitement. Ouvrez Diagnostic.",
-        ["No speaker reference detected. The microphone is passing through."] = "Aucune référence détectée. Le microphone passe sans traitement.",
+        ["No speaker audio right now. Cancellation resumes as soon as something plays."] = "Aucun son des enceintes pour le moment. L’annulation reprend dès qu’un son est lu.",
         ["Routing is unavailable. Auto keeps AEC enabled."] = "Routage indisponible. Auto maintient l’AEC activé.",
         ["Reference routing is unavailable. Using all selected sources at equal levels."] = "Routage de référence indisponible. Toutes les sources sélectionnées sont utilisées à niveau égal.",
         ["Waiting for audio…"] = "En attente du signal audio…",
@@ -266,6 +270,8 @@ public partial class MainWindow : Window
         _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); SaveSettingsNow(); };
         Loaded += Window_Loaded;
         Closing += Window_Closing;
+        StateChanged += Window_VisibilityOrStateChanged;
+        IsVisibleChanged += (_, _) => Window_VisibilityOrStateChanged(this, EventArgs.Empty);
         _ready = true;
     }
 
@@ -720,6 +726,7 @@ public partial class MainWindow : Window
         StopDialogCancelButton.Content = T("Keep running");
         StopDialogConfirmButton.Content = T("Stop engine");
         SetComboLabels();
+        _visualStatus = null; // Language changed: redraw even if the status did not.
         UpdateStatusVisual(_engine.Status);
     }
 
@@ -749,7 +756,12 @@ public partial class MainWindow : Window
                 _startupTimer?.Stop();
             }
         });
-        _engine.DiagnosticsChanged += () => Dispatcher.BeginInvoke(() => DiagnosticsBox.Text = _engine.Diagnostics);
+        _engine.DiagnosticsChanged += () => Dispatcher.BeginInvoke(() =>
+        {
+            // Rebuilding 400 lines every two seconds is wasted work while nobody can see it.
+            if (WindowShowing && DiagnosticsView.Visibility == Visibility.Visible) DiagnosticsBox.Text = _engine.Diagnostics;
+            else _diagnosticsStale = true;
+        });
         _engine.ConfigurationChanged += () => Dispatcher.BeginInvoke(UpdateSampleRateStatus);
         _engine.Exited += code => Dispatcher.BeginInvoke(() =>
         {
@@ -841,6 +853,7 @@ public partial class MainWindow : Window
         menu.Items.Add(T("Exit"), null, async (_, _) => await Dispatcher.InvokeAsync(ExitApplication));
         _tray.ContextMenuStrip?.Dispose();
         _tray.ContextMenuStrip = menu;
+        _visualStatus = null;
         UpdateStatusVisual(_engine.Status);
     }
 
@@ -851,8 +864,45 @@ public partial class MainWindow : Window
         menu.Items.Add(item);
     }
 
+    private bool WindowShowing => IsVisible && WindowState != WindowState.Minimized;
+
+    private static readonly Dictionary<string, Brush> StatusBrushes = new();
+
+    private static Brush StatusBrush(string color)
+    {
+        if (StatusBrushes.TryGetValue(color, out var brush)) return brush;
+        brush = (Brush)new BrushConverter().ConvertFromString(color)!;
+        brush.Freeze();
+        return StatusBrushes[color] = brush;
+    }
+
+    private void Window_VisibilityOrStateChanged(object? sender, EventArgs e)
+    {
+        var state = !IsVisible ? "hidden" : WindowState == WindowState.Minimized ? "minimised" : "shown";
+        if (state == _lastWindowState) return;
+        _lastWindowState = state;
+        // Correlate echo reports with the window state in engine.log.
+        if (_engine.Alive) _engine.LogEvent("window " + state);
+        if (!WindowShowing) return;
+        _visualStatus = null;
+        UpdateStatusVisual(_engine.Status);
+        RefreshDiagnosticsIfStale();
+    }
+
+    private void RefreshDiagnosticsIfStale()
+    {
+        if (!_diagnosticsStale || !WindowShowing || DiagnosticsView.Visibility != Visibility.Visible) return;
+        _diagnosticsStale = false;
+        DiagnosticsBox.Text = _engine.Diagnostics;
+    }
+
     private void UpdateStatusVisual(string status)
     {
+        // Status lines arrive ten times a second. While the window is hidden only the
+        // tray needs updating, and only when the status actually changes.
+        var changed = status != _visualStatus;
+        _visualStatus = status;
+        if (!changed && !WindowShowing) return;
         var (text, color) = status switch
         {
             "starting" => (T("Starting…"), "#D18B20"),
@@ -860,7 +910,9 @@ public partial class MainWindow : Window
             "auto" => (T("Auto · cancelling"), "#18A67E"),
             "auto-bypass" => (T("Auto · bypass"), "#D18B20"),
             "auto-unavailable" => (T("Auto · routing unavailable"), "#D18B20"),
-            "auto-missing" or "aec-missing" => (T("No reference · bypass"), "#D18B20"),
+            // Silence between speakers is normal; it is not a fault.
+            "auto-missing" => (T("Auto · idle (no playback)"), "#90A0AE"),
+            "aec-missing" => (T("AEC · idle (no playback)"), "#90A0AE"),
             "auto-error" or "aec-error" => (T("DSP error · bypass"), "#E05858"),
             "aec" => (T("AEC active"), "#18A67E"),
             "bypass" => (T("Bypass active"), "#D18B20"),
@@ -870,15 +922,15 @@ public partial class MainWindow : Window
             _ => (T("Ready"), "#90A0AE")
         };
         StatusText.Text = text;
-        StatusDot.Fill = (Brush)new BrushConverter().ConvertFromString(color)!;
+        StatusDot.Fill = StatusBrush(color);
         UpdateModeSelection(status);
         UpdateStatusIcon(status);
-        MicrophoneMeter.Value = MeterValue(_engine.MicrophonePeak);
-        ReferenceMeter.Value = MeterValue(_engine.ReferencePeak);
+        MicrophoneMeter.Value = WindowShowing ? MeterValue(_engine.MicrophonePeak) : 0;
+        ReferenceMeter.Value = WindowShowing ? MeterValue(_engine.ReferencePeak) : 0;
         AudioHealthText.Text = status switch
         {
             "auto-error" or "aec-error" => T("Processing failed. The microphone is passing through. Open Diagnostics."),
-            "auto-missing" or "aec-missing" => T("No speaker reference detected. The microphone is passing through."),
+            "auto-missing" or "aec-missing" => T("No speaker audio right now. Cancellation resumes as soon as something plays."),
             "auto-unavailable" => T("Routing is unavailable. Auto keeps AEC enabled."),
             _ when _engine.ReferenceRoutingUnavailable => T("Reference routing is unavailable. Using all selected sources at equal levels."),
             "starting" => T("Waiting for audio…"),
@@ -915,17 +967,18 @@ public partial class MainWindow : Window
     private void UpdateStatusIcon(string status)
     {
         if (_tray is null || _icon is null) return;
-        if (_statusIconState == status) return;
         var badgeColor = status switch
         {
-            "auto" => "#20C5C7",
-            "auto-bypass" or "auto-unavailable" or "auto-missing" or "aec-missing" => "#D18B20",
+            // Idle between speakers keeps the normal badge so the icon does not flicker.
+            "auto" or "auto-missing" => "#20C5C7",
+            "auto-bypass" or "auto-unavailable" => "#D18B20",
             "auto-error" or "aec-error" => "#E05858",
-            "aec" or "running" => "#18A67E",
+            "aec" or "running" or "aec-missing" => "#18A67E",
             "bypass" or "starting" or "reconnecting" => "#D18B20",
             "mute" => "#E05858",
             _ => "#90A0AE"
         };
+        if (_statusIconState == badgeColor) return;
         var replacement = CreateStatusIcon(_icon, badgeColor);
         _tray.Icon = replacement;
         var windowIcon = Imaging.CreateBitmapSourceFromHIcon(
@@ -934,7 +987,7 @@ public partial class MainWindow : Window
         Icon = windowIcon;
         _statusIcon?.Dispose();
         _statusIcon = replacement;
-        _statusIconState = status;
+        _statusIconState = badgeColor;
     }
 
     private static Icon CreateStatusIcon(Icon baseIcon, string badgeColor)
@@ -1574,6 +1627,7 @@ public partial class MainWindow : Window
         GuideNavButton.Tag = page == "guide" ? "active" : null;
         AdvancedNavButton.Tag = page == "advanced" ? "active" : null;
         DiagnosticsNavButton.Tag = page == "diagnostics" ? "active" : null;
+        RefreshDiagnosticsIfStale();
         HeaderTitle.Text = T(page == "setup" ? "Setup" : page == "guide" ? "Setup guide" : page == "advanced" ? "Advanced" : "Diagnostics");
         HeaderSubtitle.Text = page switch
         {

@@ -53,6 +53,12 @@ pub struct Engine {
     quiet_frames: usize,
     pub mic_peak: f32,
     pub ref_peak: f32,
+    /// AEC3's instantaneous echo-delay estimate; -1 while unknown.
+    pub delay_ms: i32,
+    /// Echo return loss enhancement (dB): how much echo the linear filter removes.
+    pub erle_db: f32,
+    /// Echo return loss (dB): how much quieter the echo is than the reference.
+    pub erl_db: f32,
 }
 impl Engine {
     pub fn new(delay: i32, hold_ms: usize) -> Self {
@@ -123,6 +129,9 @@ impl Engine {
             quiet_frames: 0,
             mic_peak: 0.,
             ref_peak: 0.,
+            delay_ms: -1,
+            erle_db: 0.,
+            erl_db: 0.,
         })
     }
     pub fn tick(&mut self, mic: f32, left: f32, right: f32, mode: i32) -> f32 {
@@ -167,6 +176,12 @@ impl Engine {
             self.failed = failed;
             if failed {
                 self.output.copy_from_slice(&self.mic);
+            } else {
+                let stats = self.apm.statistics();
+                self.delay_ms = stats.delay_ms.unwrap_or(-1);
+                let db = |v: Option<f64>| v.filter(|x| x.is_finite()).unwrap_or(0.) as f32;
+                self.erle_db = db(stats.echo_return_loss_enhancement);
+                self.erl_db = db(stats.echo_return_loss);
             }
             // Crossfade for 10 ms, with aligned frame positions. The DSP's
             // internal group delay still differs from dry bypass.
@@ -226,8 +241,105 @@ mod tests {
             assert_eq!(first_manual, last_manual, "manual alignment drifted at {rate}");
             assert!((20..=60).contains(&last_manual));
             assert_eq!(automatic.errors + manual.errors, 0);
+            assert!((80..=120).contains(&automatic.delay_ms), "published delay {}", automatic.delay_ms);
+            assert!(automatic.erle_db.is_finite() && automatic.erl_db.is_finite());
         }
     }
+    /// Offline bench (not part of the normal suite): echo-path changes like clock-drift
+    /// corrections between two audio devices, under harder room conditions. Run with
+    /// `cargo test --release drift_bench -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn drift_bench() {
+        struct Scenario { name: &'static str, delay: fn(f64) -> f64, echo: f32, noise: f32, drive: f32, playback: fn(f64) -> bool }
+        let always: fn(f64) -> bool = |_| true;
+        let scenarios = [
+            Scenario { name: "baseline: stable, clean", delay: |_| 80., echo: 0.3, noise: 0.0005, drive: 0., playback: always },
+            Scenario { name: "quiet echo + room noise", delay: |_| 80., echo: 0.03, noise: 0.003, drive: 0., playback: always },
+            Scenario { name: "distorting speaker", delay: |_| 80., echo: 0.3, noise: 0.001, drive: 4., playback: always },
+            Scenario { name: "quiet + noisy + 100 ppm drift", delay: |t| 80. + 0.1 * t, echo: 0.03, noise: 0.003, drive: 0., playback: always },
+            Scenario { name: "40 ms jumps every 60 s", delay: |t| 80. + 40. * ((t / 60.).floor() % 2.), echo: 0.3, noise: 0.001, drive: 0., playback: always },
+            Scenario { name: "quiet + noisy + 40 ms jumps", delay: |t| 80. + 40. * ((t / 60.).floor() % 2.), echo: 0.03, noise: 0.003, drive: 0., playback: always },
+            Scenario { name: "2 min silence, then playback at new delay", delay: |t| if t < 150. { 80. } else { 110. }, echo: 0.3, noise: 0.001, drive: 0., playback: |t| !(30. ..150.).contains(&t) },
+        ];
+        let rate = 48_000usize;
+        let seconds = 300usize;
+        println!("
+scenario                                   | settle | worst 10 s | 10 s windows < 20 dB | longest bad run | final");
+        for sc in scenarios {
+            let mut engine = Engine::with_delay_mode(0, 0, ResidualSuppression::Standard, rate, true).unwrap();
+            let mut seed = 7u32;
+            let mut rand = move || {
+                seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+                (seed >> 8) as f32 / 8388608. - 1.
+            };
+            let taps = rate * 120 / 1000;
+            let ir: Vec<f32> = (0..taps)
+                .map(|i| if i == 0 { 1. } else { rand() * 0.25 * (-(i as f32) / (rate as f32 * 0.03)).exp() })
+                .collect();
+            let history_len = rate * 2;
+            let mut history = vec![0f32; history_len];
+            let mut lowpass = 0f32;
+            let (mut mic_energy, mut out_energy, mut active) = (0f64, 0f64, 0usize);
+            let (mut pause_energy, mut paused) = (0f64, 0usize);
+            let mut windows = Vec::new();
+            for i in 0..rate * seconds {
+                let t = i as f64 / rate as f64;
+                lowpass += 0.25 * (rand() - lowpass);
+                let syllable = (0.5 + 0.5 * (t * 2. * std::f64::consts::PI * 4.).sin()) as f32;
+                let talking = (sc.playback)(t) && (t % 4.) < 2.8;
+                let reference = if talking { lowpass * syllable * 0.6 } else { 0. };
+                // The speaker hears a possibly overdriven copy; AEC only sees the clean reference.
+                let played = if sc.drive > 0. { (reference * sc.drive).tanh() / sc.drive.tanh() } else { reference };
+                history[i % history_len] = played;
+                let delay = (sc.delay)(t) * rate as f64 / 1000.;
+                let mut echo = 0f32;
+                for k in (0..taps).step_by(16) {
+                    let pos = i as f64 - delay - k as f64;
+                    if pos < 0. { break; }
+                    let base = pos.floor();
+                    let frac = (pos - base) as f32;
+                    let a = history[base as usize % history_len];
+                    let b = history[(base as usize + 1) % history_len];
+                    echo += (a + (b - a) * frac) * ir[k];
+                }
+                let noise = rand() * sc.noise;
+                let microphone = echo * sc.echo + noise;
+                let output = engine.tick(microphone, reference, reference, 0);
+                if talking && (t % 4.) > 0.3 {
+                    // True echo energy in; output energy (echo residual + processed noise) out.
+                    mic_energy += ((echo * sc.echo) as f64).powi(2);
+                    out_energy += (output as f64).powi(2);
+                    active += 1;
+                }
+                if (sc.playback)(t) && (t % 4.) > 3.1 {
+                    // Pause after the echo tail: what the output looks like with noise only.
+                    pause_energy += (output as f64).powi(2);
+                    paused += 1;
+                }
+                if (i + 1) % (rate * 10) == 0 {
+                    if active > 0 {
+                        let floor = if paused > 0 { pause_energy / paused as f64 * active as f64 } else { 0. };
+                        // Residual echo is what exceeds the noise-only output; cap at 60 dB.
+                        let echo_out = (out_energy - floor).max(mic_energy * 1e-6);
+                        windows.push(Some(10. * (mic_energy / echo_out).log10()));
+                    } else {
+                        windows.push(None);
+                    }
+                    (mic_energy, out_energy, active) = (0., 0., 0);
+                    (pause_energy, paused) = (0., 0);
+                }
+            }
+            let measured: Vec<f64> = windows.iter().flatten().copied().collect();
+            let worst = measured.iter().skip(1).cloned().fold(f64::INFINITY, f64::min);
+            let bad = measured.iter().skip(1).filter(|v| **v < 20.).count();
+            let (mut run, mut longest) = (0, 0);
+            for v in measured.iter().skip(1) { if *v < 20. { run += 1; longest = longest.max(run); } else { run = 0; } }
+            println!("{:<42} | {:5.1} | {:8.1} dB | {:20} | {:12} s | {:5.1} dB",
+                sc.name, measured[1], worst, bad, longest * 10, measured.last().unwrap());
+        }
+    }
+
     #[test]
     fn transitions_and_unmute_are_bounded() {
         let mut ramp = Ramp::new(0.);
