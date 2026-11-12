@@ -17,7 +17,7 @@ internal static class VoiceMeeterLabels
         var labels = new string?[layout.StripCount];
         if (!MixerLayout.IsRunning(layout)) return labels;
 
-        var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "VB", "Voicemeeter", "VoicemeeterRemote64.dll");
+        var path = MixerLayout.RemoteDllPath();
         if (!File.Exists(path)) return labels;
 
         nint library = 0;

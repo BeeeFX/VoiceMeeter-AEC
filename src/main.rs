@@ -79,6 +79,9 @@ unsafe extern "C" fn aec_block(
         *stats.add(2) = if e.missing { 1. } else { 0. };
         *stats.add(3) = e.errors as f32;
         *stats.add(4) = if e.failed { 1. } else { 0. };
+        *stats.add(5) = e.delay_ms as f32;
+        *stats.add(6) = e.erle_db;
+        *stats.add(7) = e.erl_db;
     }
 }
 fn main() {
@@ -277,6 +280,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
         if seconds > 0 && remaining <= 0 {
             return Ok(());
         }
+        let attempt_started = std::time::Instant::now();
         let c = unsafe {
             asio_run(
                 mic - 1,
@@ -299,7 +303,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
         if c == 0 {
             return Ok(());
         } else {
-            if let Some(wait) = recovery.retry_delay(c) {
+            if let Some(wait) = recovery.retry_delay(c, attempt_started.elapsed()) {
                 eprintln!(
                     "Driver interrupted. Retrying the same Insert driver in {wait} ms (attempt {}/2); mode {mode} preserved. Ctrl+C cancels.",
                     recovery.attempts
@@ -438,7 +442,13 @@ struct Recovery {
     attempts: usize,
 }
 impl Recovery {
-    fn retry_delay(&mut self, code: i32) -> Option<u64> {
+    /// A run this long counts as a recovered session, so later resets
+    /// (VoiceMeeter restarts, device changes) get fresh retries.
+    const STABLE_RUN: std::time::Duration = std::time::Duration::from_secs(60);
+    fn retry_delay(&mut self, code: i32, ran_for: std::time::Duration) -> Option<u64> {
+        if ran_for >= Self::STABLE_RUN {
+            self.attempts = 0;
+        }
         // Only a driver reset/resync or callback stall is retryable. Never retry
         // user quit, a sample-rate change, invalid buffers, or an unknown error.
         if ![34, 35].contains(&code) || self.attempts >= 2 {
@@ -496,12 +506,25 @@ mod recovery_tests {
     }
     #[test]
     fn recovery_is_bounded_and_selective() {
+        use std::time::Duration;
+        let quick = Duration::from_millis(500);
         for code in [0, 13, 16, 17, 20, 22, 31, 32, 33, 36] {
-            assert_eq!(Recovery::default().retry_delay(code), None);
+            assert_eq!(Recovery::default().retry_delay(code, quick), None);
         }
         let mut r = Recovery::default();
-        assert_eq!(r.retry_delay(34), Some(250));
-        assert_eq!(r.retry_delay(35), Some(1000));
-        assert_eq!(r.retry_delay(34), None);
+        assert_eq!(r.retry_delay(34, quick), Some(250));
+        assert_eq!(r.retry_delay(35, quick), Some(1000));
+        assert_eq!(r.retry_delay(34, quick), None);
+    }
+    #[test]
+    fn recovery_resets_after_a_stable_run() {
+        use std::time::Duration;
+        let mut r = Recovery::default();
+        // Two quick failures, then hours of healthy audio, then another reset.
+        assert_eq!(r.retry_delay(34, Duration::from_millis(300)), Some(250));
+        assert_eq!(r.retry_delay(34, Duration::from_millis(300)), Some(1000));
+        assert_eq!(r.retry_delay(34, Duration::from_secs(4 * 3600)), Some(250));
+        assert_eq!(r.retry_delay(35, Duration::from_millis(300)), Some(1000));
+        assert_eq!(r.retry_delay(35, Duration::from_millis(300)), None);
     }
 }
