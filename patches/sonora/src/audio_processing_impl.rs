@@ -1283,6 +1283,23 @@ impl AudioProcessingImpl {
         config.delay.use_external_delay_estimator = !ec.automatic_delay;
         stereo.delay.use_external_delay_estimator = !ec.automatic_delay;
         stereo.echo_removal_control.transparent_mode = ec.transparent_mode;
+        // The reference is a clean digital mix whose level follows app volumes,
+        // not speaker loudness: quiet calls played on loud speakers sat below
+        // the stock activity limits, so delay estimation and adaptation stalled
+        // for minutes. Lower only the limits that gate delay estimation and
+        // linear-filter adaptation by 30 dB; residual suppression keeps its
+        // stock levels so double-talk preservation is unchanged.
+        const AMPLITUDE: f32 = 0.031_622_78; // -30 dB
+        const POWER: f32 = AMPLITUDE * AMPLITUDE;
+        for c in [&mut config, &mut stereo] {
+            c.render_levels.active_render_limit *= AMPLITUDE;
+            c.render_levels.poor_excitation_render_limit *= AMPLITUDE;
+            c.render_levels.poor_excitation_render_limit_ds8 *= AMPLITUDE;
+            c.filter.refined.noise_gate *= POWER;
+            c.filter.refined_initial.noise_gate *= POWER;
+            c.filter.coarse.noise_gate *= POWER;
+            c.filter.coarse_initial.noise_gate *= POWER;
+        }
         if ec.residual_suppression != crate::config::ResidualSuppression::Standard {
             let (transparent, suppress) = match ec.residual_suppression {
                 crate::config::ResidualSuppression::Balanced => (2.25, 4.5),

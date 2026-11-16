@@ -251,22 +251,30 @@ mod tests {
     #[test]
     #[ignore]
     fn drift_bench() {
-        struct Scenario { name: &'static str, delay: fn(f64) -> f64, echo: f32, noise: f32, drive: f32, playback: fn(f64) -> bool }
+        struct Scenario { name: &'static str, delay: fn(f64) -> f64, echo: f32, noise: f32, drive: f32, playback: fn(f64) -> bool, level: f32 }
         let always: fn(f64) -> bool = |_| true;
         let scenarios = [
-            Scenario { name: "baseline: stable, clean", delay: |_| 80., echo: 0.3, noise: 0.0005, drive: 0., playback: always },
-            Scenario { name: "quiet echo + room noise", delay: |_| 80., echo: 0.03, noise: 0.003, drive: 0., playback: always },
-            Scenario { name: "distorting speaker", delay: |_| 80., echo: 0.3, noise: 0.001, drive: 4., playback: always },
-            Scenario { name: "quiet + noisy + 100 ppm drift", delay: |t| 80. + 0.1 * t, echo: 0.03, noise: 0.003, drive: 0., playback: always },
-            Scenario { name: "40 ms jumps every 60 s", delay: |t| 80. + 40. * ((t / 60.).floor() % 2.), echo: 0.3, noise: 0.001, drive: 0., playback: always },
-            Scenario { name: "quiet + noisy + 40 ms jumps", delay: |t| 80. + 40. * ((t / 60.).floor() % 2.), echo: 0.03, noise: 0.003, drive: 0., playback: always },
-            Scenario { name: "2 min silence, then playback at new delay", delay: |t| if t < 150. { 80. } else { 110. }, echo: 0.3, noise: 0.001, drive: 0., playback: |t| !(30. ..150.).contains(&t) },
+            Scenario { name: "baseline: stable, clean", delay: |_| 80., echo: 0.3, noise: 0.0005, drive: 0., playback: always, level: 1. },
+            Scenario { name: "quiet echo + room noise", delay: |_| 80., echo: 0.03, noise: 0.003, drive: 0., playback: always, level: 1. },
+            Scenario { name: "distorting speaker", delay: |_| 80., echo: 0.3, noise: 0.001, drive: 4., playback: always, level: 1. },
+            Scenario { name: "quiet + noisy + 100 ppm drift", delay: |t| 80. + 0.1 * t, echo: 0.03, noise: 0.003, drive: 0., playback: always, level: 1. },
+            Scenario { name: "40 ms jumps every 60 s", delay: |t| 80. + 40. * ((t / 60.).floor() % 2.), echo: 0.3, noise: 0.001, drive: 0., playback: always, level: 1. },
+            Scenario { name: "quiet + noisy + 40 ms jumps", delay: |t| 80. + 40. * ((t / 60.).floor() % 2.), echo: 0.03, noise: 0.003, drive: 0., playback: always, level: 1. },
+            Scenario { name: "2 min silence, then playback at new delay", delay: |t| if t < 150. { 80. } else { 110. }, echo: 0.3, noise: 0.001, drive: 0., playback: |t| !(30. ..150.).contains(&t), level: 1. },
+            // Field log 2026-11-16: Discord peaks of 0.003-0.03 at the reference while the
+            // speakers are loud. Echo level at the mic is unchanged; only the reference is quiet.
+            Scenario { name: "quiet reference (-30 dBFS), loud speakers", delay: |_| 132., echo: 0.3, noise: 0.001, drive: 0., playback: always, level: 0.1 },
+            Scenario { name: "very quiet reference (-40 dBFS)", delay: |_| 132., echo: 0.3, noise: 0.001, drive: 0., playback: always, level: 0.03 },
+            Scenario { name: "quietest reference (-50 dBFS)", delay: |_| 132., echo: 0.3, noise: 0.001, drive: 0., playback: always, level: 0.01 },
+            Scenario { name: "very quiet ref + 40 ms jumps", delay: |t| 132. + 40. * ((t / 60.).floor() % 2.), echo: 0.3, noise: 0.001, drive: 0., playback: always, level: 0.03 },
         ];
         let rate = 48_000usize;
         let seconds = 300usize;
         println!("
 scenario                                   | settle | worst 10 s | 10 s windows < 20 dB | longest bad run | final");
-        for sc in scenarios {
+        // BENCH=<text> runs only scenarios whose name contains it.
+        let filter = std::env::var("BENCH").unwrap_or_default();
+        for sc in scenarios.into_iter().filter(|sc| sc.name.contains(filter.as_str())) {
             let mut engine = Engine::with_delay_mode(0, 0, ResidualSuppression::Standard, rate, true).unwrap();
             let mut seed = 7u32;
             let mut rand = move || {
@@ -305,7 +313,7 @@ scenario                                   | settle | worst 10 s | 10 s windows 
                 }
                 let noise = rand() * sc.noise;
                 let microphone = echo * sc.echo + noise;
-                let output = engine.tick(microphone, reference, reference, 0);
+                let output = engine.tick(microphone, reference * sc.level, reference * sc.level, 0);
                 if talking && (t % 4.) > 0.3 {
                     // True echo energy in; output energy (echo residual + processed noise) out.
                     mic_energy += ((echo * sc.echo) as f64).powi(2);
