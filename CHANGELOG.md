@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.3 — keep the echo model across long pauses
+
+- Fix echo returning after five minutes of silence. Stock AEC3 switches from stereo back to mono processing after 300 s without stereo content (silence counts as none), and each switch rebuilds the canceller and forgets the echo delay; stereo audio afterwards rebuilt it again. Field logs showed every lost delay following exactly 300 s of silence, while pauses of 2-34 s kept it.
+- Once stereo content is detected, processing now stays stereo for the session. Short pauses were never affected.
+- Offline bench: stereo playback, six minutes of silence, then a call now cancels fully from the first 10 s (before: 27.5 dB at normal level, 10 dB at a quiet -40 dBFS reference). Other scenarios are unchanged.
+
 ## 1.4.2 — cancel echo from quiet calls on loud speakers
 
 - Fix long stretches with no echo cancellation when the speaker reference is quiet but the speakers are loud (for example a Discord call at low app volume with the speaker volume turned up). AEC3 treated audio below about -50 dBFS as silence, so it could not find or keep the echo delay; one field log showed cancellation working only 37% of the time, with gaps of up to an hour.
