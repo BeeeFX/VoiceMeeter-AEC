@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.2 — cancel echo from quiet calls on loud speakers
+
+- Fix long stretches with no echo cancellation when the speaker reference is quiet but the speakers are loud (for example a Discord call at low app volume with the speaker volume turned up). AEC3 treated audio below about -50 dBFS as silence, so it could not find or keep the echo delay; one field log showed cancellation working only 37% of the time, with gaps of up to an hour.
+- Lower the limits that gate AEC3's delay estimation and linear-filter adaptation by 30 dB (render activity, excitation and filter noise gates). Residual suppression keeps its stock levels, so near-end speech preservation is unchanged: the Gentle and Balanced double-talk results are identical to 1.4.1.
+- Offline bench: references at -30, -40 and -50 dBFS now reach full cancellation (before: after 3 minutes, never, never; -50 dBFS starts at 44 dB and reaches full within the first minute). Existing drift, noise, distortion and silence scenarios are unchanged; 40 ms delay jumps still recover within one 10 s window. `BENCH=<name>` selects scenarios.
+
 ## 1.4.1 — reliability and echo diagnostics
 
 - Log AEC3 health every two seconds in engine.log: current echo delay, its min/max over the interval, ERLE and ERL, the longest gap between audio callbacks, and whether the callback thread joined the Windows Pro Audio scheduler. Window shown/minimised/hidden events are logged alongside, so intermittent echo reports can be matched to delay jumps, scheduling stalls or convergence loss.
