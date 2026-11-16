@@ -1299,6 +1299,11 @@ impl AudioProcessingImpl {
             c.filter.refined_initial.noise_gate *= POWER;
             c.filter.coarse.noise_gate *= POWER;
             c.filter.coarse_initial.noise_gate *= POWER;
+            // Stock AEC3 drops back to mono after 300 s without stereo content,
+            // and silence counts as none. Each switch rebuilds the canceller and
+            // forgets the echo delay, so every pause of five minutes cost a full
+            // reconvergence when playback resumed. Once stereo is seen, keep it.
+            c.multi_channel.stereo_detection_timeout_threshold_seconds = 0;
         }
         if ec.residual_suppression != crate::config::ResidualSuppression::Standard {
             let (transparent, suppress) = match ec.residual_suppression {

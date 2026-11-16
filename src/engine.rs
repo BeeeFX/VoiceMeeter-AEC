@@ -251,27 +251,30 @@ mod tests {
     #[test]
     #[ignore]
     fn drift_bench() {
-        struct Scenario { name: &'static str, delay: fn(f64) -> f64, echo: f32, noise: f32, drive: f32, playback: fn(f64) -> bool, level: f32 }
+        struct Scenario { name: &'static str, delay: fn(f64) -> f64, echo: f32, noise: f32, drive: f32, playback: fn(f64) -> bool, level: f32, stereo: bool, seconds: usize }
         let always: fn(f64) -> bool = |_| true;
         let scenarios = [
-            Scenario { name: "baseline: stable, clean", delay: |_| 80., echo: 0.3, noise: 0.0005, drive: 0., playback: always, level: 1. },
-            Scenario { name: "quiet echo + room noise", delay: |_| 80., echo: 0.03, noise: 0.003, drive: 0., playback: always, level: 1. },
-            Scenario { name: "distorting speaker", delay: |_| 80., echo: 0.3, noise: 0.001, drive: 4., playback: always, level: 1. },
-            Scenario { name: "quiet + noisy + 100 ppm drift", delay: |t| 80. + 0.1 * t, echo: 0.03, noise: 0.003, drive: 0., playback: always, level: 1. },
-            Scenario { name: "40 ms jumps every 60 s", delay: |t| 80. + 40. * ((t / 60.).floor() % 2.), echo: 0.3, noise: 0.001, drive: 0., playback: always, level: 1. },
-            Scenario { name: "quiet + noisy + 40 ms jumps", delay: |t| 80. + 40. * ((t / 60.).floor() % 2.), echo: 0.03, noise: 0.003, drive: 0., playback: always, level: 1. },
-            Scenario { name: "2 min silence, then playback at new delay", delay: |t| if t < 150. { 80. } else { 110. }, echo: 0.3, noise: 0.001, drive: 0., playback: |t| !(30. ..150.).contains(&t), level: 1. },
+            Scenario { name: "baseline: stable, clean", delay: |_| 80., echo: 0.3, noise: 0.0005, drive: 0., playback: always, level: 1., stereo: false, seconds: 300 },
+            Scenario { name: "quiet echo + room noise", delay: |_| 80., echo: 0.03, noise: 0.003, drive: 0., playback: always, level: 1., stereo: false, seconds: 300 },
+            Scenario { name: "distorting speaker", delay: |_| 80., echo: 0.3, noise: 0.001, drive: 4., playback: always, level: 1., stereo: false, seconds: 300 },
+            Scenario { name: "quiet + noisy + 100 ppm drift", delay: |t| 80. + 0.1 * t, echo: 0.03, noise: 0.003, drive: 0., playback: always, level: 1., stereo: false, seconds: 300 },
+            Scenario { name: "40 ms jumps every 60 s", delay: |t| 80. + 40. * ((t / 60.).floor() % 2.), echo: 0.3, noise: 0.001, drive: 0., playback: always, level: 1., stereo: false, seconds: 300 },
+            Scenario { name: "quiet + noisy + 40 ms jumps", delay: |t| 80. + 40. * ((t / 60.).floor() % 2.), echo: 0.03, noise: 0.003, drive: 0., playback: always, level: 1., stereo: false, seconds: 300 },
+            Scenario { name: "2 min silence, then playback at new delay", delay: |t| if t < 150. { 80. } else { 110. }, echo: 0.3, noise: 0.001, drive: 0., playback: |t| !(30. ..150.).contains(&t), level: 1., stereo: false, seconds: 300 },
             // Field log 2026-11-16: Discord peaks of 0.003-0.03 at the reference while the
             // speakers are loud. Echo level at the mic is unchanged; only the reference is quiet.
-            Scenario { name: "quiet reference (-30 dBFS), loud speakers", delay: |_| 132., echo: 0.3, noise: 0.001, drive: 0., playback: always, level: 0.1 },
-            Scenario { name: "very quiet reference (-40 dBFS)", delay: |_| 132., echo: 0.3, noise: 0.001, drive: 0., playback: always, level: 0.03 },
-            Scenario { name: "quietest reference (-50 dBFS)", delay: |_| 132., echo: 0.3, noise: 0.001, drive: 0., playback: always, level: 0.01 },
-            Scenario { name: "very quiet ref + 40 ms jumps", delay: |t| 132. + 40. * ((t / 60.).floor() % 2.), echo: 0.3, noise: 0.001, drive: 0., playback: always, level: 0.03 },
+            Scenario { name: "quiet reference (-30 dBFS), loud speakers", delay: |_| 132., echo: 0.3, noise: 0.001, drive: 0., playback: always, level: 0.1, stereo: false, seconds: 300 },
+            Scenario { name: "very quiet reference (-40 dBFS)", delay: |_| 132., echo: 0.3, noise: 0.001, drive: 0., playback: always, level: 0.03, stereo: false, seconds: 300 },
+            Scenario { name: "quietest reference (-50 dBFS)", delay: |_| 132., echo: 0.3, noise: 0.001, drive: 0., playback: always, level: 0.01, stereo: false, seconds: 300 },
+            Scenario { name: "very quiet ref + 40 ms jumps", delay: |t| 132. + 40. * ((t / 60.).floor() % 2.), echo: 0.3, noise: 0.001, drive: 0., playback: always, level: 0.03, stereo: false, seconds: 300 },
+            // Field log 2026-11-16: after exactly 300 s without stereo content AEC3 fell back
+            // to mono and rebuilt itself, losing the delay; stereo content then rebuilt it again.
+            Scenario { name: "stereo, 6 min silence, then call", delay: |_| 132., echo: 0.3, noise: 0.001, drive: 0., playback: |t| !(30. ..390.).contains(&t), level: 1., stereo: true, seconds: 480 },
+            Scenario { name: "quiet stereo, 6 min silence, then call", delay: |_| 132., echo: 0.3, noise: 0.001, drive: 0., playback: |t| !(30. ..390.).contains(&t), level: 0.03, stereo: true, seconds: 480 },
         ];
         let rate = 48_000usize;
-        let seconds = 300usize;
         println!("
-scenario                                   | settle | worst 10 s | 10 s windows < 20 dB | longest bad run | final");
+scenario                                   | settle | worst 10 s | 10 s windows < 20 dB | longest bad run | final | after silence");
         // BENCH=<text> runs only scenarios whose name contains it.
         let filter = std::env::var("BENCH").unwrap_or_default();
         for sc in scenarios.into_iter().filter(|sc| sc.name.contains(filter.as_str())) {
@@ -291,7 +294,7 @@ scenario                                   | settle | worst 10 s | 10 s windows 
             let (mut mic_energy, mut out_energy, mut active) = (0f64, 0f64, 0usize);
             let (mut pause_energy, mut paused) = (0f64, 0usize);
             let mut windows = Vec::new();
-            for i in 0..rate * seconds {
+            for i in 0..rate * sc.seconds {
                 let t = i as f64 / rate as f64;
                 lowpass += 0.25 * (rand() - lowpass);
                 let syllable = (0.5 + 0.5 * (t * 2. * std::f64::consts::PI * 4.).sin()) as f32;
@@ -313,7 +316,9 @@ scenario                                   | settle | worst 10 s | 10 s windows 
                 }
                 let noise = rand() * sc.noise;
                 let microphone = echo * sc.echo + noise;
-                let output = engine.tick(microphone, reference * sc.level, reference * sc.level, 0);
+                // Stereo: the right channel differs in level, as real stereo mixes do.
+                let right = if sc.stereo { reference * 0.7 } else { reference };
+                let output = engine.tick(microphone, reference * sc.level, right * sc.level, 0);
                 if talking && (t % 4.) > 0.3 {
                     // True echo energy in; output energy (echo residual + processed noise) out.
                     mic_energy += ((echo * sc.echo) as f64).powi(2);
@@ -343,8 +348,11 @@ scenario                                   | settle | worst 10 s | 10 s windows 
             let bad = measured.iter().skip(1).filter(|v| **v < 20.).count();
             let (mut run, mut longest) = (0, 0);
             for v in measured.iter().skip(1) { if *v < 20. { run += 1; longest = longest.max(run); } else { run = 0; } }
-            println!("{:<42} | {:5.1} | {:8.1} dB | {:20} | {:12} s | {:5.1} dB",
-                sc.name, measured[1], worst, bad, longest * 10, measured.last().unwrap());
+            // First 10 s window once playback resumes after a silent stretch.
+            let resume = windows.windows(2).find(|w| w[0].is_none() && w[1].is_some()).and_then(|w| w[1]);
+            println!("{:<42} | {:5.1} | {:8.1} dB | {:20} | {:12} s | {:5.1} dB | {}",
+                sc.name, measured[1], worst, bad, longest * 10, measured.last().unwrap(),
+                resume.map_or("-".into(), |v| format!("{v:.1} dB")));
         }
     }
 
