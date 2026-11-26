@@ -38,6 +38,8 @@ std::atomic<float> dsp_failed{0};
 std::atomic<int> aec_delay{-1};std::atomic<float> aec_erle{0},aec_erl{0};
 // Largest interval between consecutive callback starts since the last log line.
 std::atomic<uint64_t> max_gap_us{0};std::atomic<int> mmcss_state{0};
+// Loudest microphone/reference block since the last log line (meters use the latest block).
+std::atomic<float> mic_interval_peak{0},ref_interval_peak{0};
 std::chrono::steady_clock::time_point last_callback{};
 thread_local bool mmcss_attempted=false;
 // The control thread publishes normalized weights. The callback never calls Remote.
@@ -73,7 +75,7 @@ std::atomic<bool> latency_dirty{false};
 void reset_session_state(int initial){
  fault=0;quitting=false;callbacks=0;overruns=0;max_us=0;micpeak=0;refpeak=0;missing=0;errors=0;dsp_failed=0;
  busy.clear();ready=false;latency_dirty=false;mode=initial==3?0:initial;
- aec_delay=-1;aec_erle=0;aec_erl=0;max_gap_us=0;mmcss_state=0;last_callback={};
+ aec_delay=-1;aec_erle=0;aec_erl=0;max_gap_us=0;mmcss_state=0;mic_interval_peak=0;ref_interval_peak=0;last_callback={};
 }
 int completion_code(bool cancelled,int driver_fault){return cancelled?0:driver_fault?30+driver_fault:0;}
 // The launcher owns an anonymous stdin pipe. Never block the ASIO control loop.
@@ -156,6 +158,8 @@ void process(long index,ASIOBool) {
  aec_block(engine,micdata.data(),leftdata.data(),rightdata.data(),clean.data(),size_t(frames),mode.load(),stats);
  transfer(index);if(ready && driver->outputReady()!=ASE_OK)fault=6;
  micpeak=stats[0];refpeak=stats[1];missing=stats[2];errors=stats[3];dsp_failed=stats[4];
+ if(stats[0]>mic_interval_peak.load(std::memory_order_relaxed))mic_interval_peak.store(stats[0],std::memory_order_relaxed);
+ if(stats[1]>ref_interval_peak.load(std::memory_order_relaxed))ref_interval_peak.store(stats[1],std::memory_order_relaxed);
  aec_delay.store(int(stats[5]),std::memory_order_relaxed);aec_erle.store(stats[6],std::memory_order_relaxed);aec_erl.store(stats[7],std::memory_order_relaxed);
  auto us=uint64_t(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-begin).count());
  if(us>max_us.load())max_us=us;if(us*uint64_t(session_rate)>uint64_t(frames)*1000000)overruns++;callbacks++;
@@ -359,7 +363,7 @@ extern "C" int asio_run(int m,uint64_t ref_left,uint64_t ref_right,uint64_t ret,
    if(now-last>=std::chrono::seconds(2)){
     auto count=callbacks.load();
     std::printf("mode=%d auto=%d blocks=%llu max=%llu us overruns=%llu gap_max=%llu us mmcss=%d mic=%.4f ref=%.4f ref_missing=%d errors=%.0f delay=%d delay_min=%d delay_max=%d erle=%.1f erl=%.1f\n",
-     mode.load(),int(automatic),count,max_us.load(),overruns.load(),max_gap_us.exchange(0),mmcss_state.load(),micpeak.load(),refpeak.load(),int(missing.load()),errors.load(),
+     mode.load(),int(automatic),count,max_us.load(),overruns.load(),max_gap_us.exchange(0),mmcss_state.load(),mic_interval_peak.exchange(0),ref_interval_peak.exchange(0),int(missing.load()),errors.load(),
      aec_delay.load(),delay_max<0?-1:delay_min,delay_max,aec_erle.load(),aec_erl.load());
     delay_min=INT_MAX;delay_max=-1;
     if(count==previous){std::fprintf(stderr,"No callback for 2 seconds.\n");fault=5;}previous=count;last=now;

@@ -763,6 +763,14 @@ public partial class MainWindow : Window
             else _diagnosticsStale = true;
         });
         _engine.ConfigurationChanged += () => Dispatcher.BeginInvoke(UpdateSampleRateStatus);
+        _engine.EchoDelayConfirmed += delay => Dispatcher.BeginInvoke(() =>
+        {
+            // Small jitter (one or two 4 ms blocks) is not worth a settings write.
+            if (!_settings.AutomaticDelay || Math.Abs(delay - _settings.LearnedEchoDelayMs) <= 8) return;
+            _engine.LogEvent($"learned echo delay {delay} ms (was {_settings.LearnedEchoDelayMs} ms)");
+            _settings.LearnedEchoDelayMs = delay;
+            QueueSave();
+        });
         _engine.Exited += code => Dispatcher.BeginInvoke(() =>
         {
             if (_startupPending)
@@ -1241,8 +1249,17 @@ public partial class MainWindow : Window
         if (!AutomaticDelayBox.IsEnabled || !AutomaticDelayBox.IsChecked.GetValueOrDefault() || DelaySlider.IsEnabled ||
             !BuildEngineArguments().Contains("--auto-delay"))
             throw new InvalidOperationException("Automatic delay must be the default and disable the manual slider.");
+        _settings.LearnedEchoDelayMs = 132;
+        var learnedArguments = BuildEngineArguments();
+        var hintIndex = learnedArguments.IndexOf("--delay-hint");
+        if (hintIndex < 0 || learnedArguments[hintIndex + 1] != "132" ||
+            AppSettings.Parse(System.Text.Json.JsonSerializer.Serialize(_settings), false).LearnedEchoDelayMs != 132 ||
+            AppSettings.Parse("{\"LearnedEchoDelayMs\":9000}", false).LearnedEchoDelayMs != 500)
+            throw new InvalidOperationException("The learned echo delay did not reach the engine or settings.");
         AutomaticDelayBox.IsChecked = false;
         DelaySlider.Value = 75;
+        if (BuildEngineArguments().Contains("--delay-hint"))
+            throw new InvalidOperationException("Manual delay mode must not pass a learned delay.");
         if (!DelaySlider.IsEnabled || !BuildEngineArguments().Contains("--manual-delay") || _settings.DelayMs != 75)
             throw new InvalidOperationException("Manual delay mode did not reach the engine arguments.");
         var restoredDelay = AppSettings.Parse(System.Text.Json.JsonSerializer.Serialize(_settings), false);
@@ -1497,6 +1514,8 @@ public partial class MainWindow : Window
         };
         if (_settings.Allow44100Resampling) result.Add("--allow-44100-resampling");
         result.Add(_settings.AutomaticDelay ? "--auto-delay" : "--manual-delay");
+        if (_settings.AutomaticDelay && _settings.LearnedEchoDelayMs > 0)
+            result.AddRange(["--delay-hint", _settings.LearnedEchoDelayMs.ToString()]);
         return result;
     }
 
