@@ -18,6 +18,8 @@ public sealed class EngineHost : IDisposable
     public event Action? DiagnosticsChanged;
     public event Action? ConfigurationChanged;
     public event Action<int>? Exited;
+    /// <summary>An echo delay (ms) confirmed by active cancellation, from the periodic health line.</summary>
+    public event Action<int>? EchoDelayConfirmed;
     public bool Alive => _process is not null && !_finished;
     public bool EverRunning { get; private set; }
     public string CurrentMode { get; private set; } = "auto";
@@ -112,6 +114,11 @@ public sealed class EngineHost : IDisposable
             SetStatus(Number(line, "blocks") > 0 ? state : "starting");
             return; // Fast meters are not written to the diagnostic log.
         }
+        // Remember a delay only while AEC is on and actually removing echo, so the
+        // stock fallback (8-20 ms) or a stale estimate is never learned.
+        if (line.StartsWith("mode=") && Number(line, "mode") == 0 && Number(line, "ref_missing") == 0 &&
+            Number(line, "delay") >= 24 && Number(line, "erle") >= 6)
+            EchoDelayConfirmed?.Invoke((int)Number(line, "delay"));
         _lines.Enqueue(line);
         while (_lines.Count > 400) _lines.TryDequeue(out _);
         _log?.WriteLine($"{DateTimeOffset.Now:O} {line}");
@@ -180,6 +187,20 @@ public sealed class EngineHost : IDisposable
         parser.ProcessLine("status mode=0 auto=0 blocks=0 mic=NaN ref=Infinity");
         if (parser.Status != "starting" || parser.MicrophonePeak != 0 || parser.ReferencePeak != 0)
             throw new InvalidOperationException("Invalid meter or callback state.");
+        var learned = new List<int>();
+        parser.EchoDelayConfirmed += learned.Add;
+        const string health = "auto=1 blocks=9 max=400 us overruns=0 gap_max=5000 us mmcss=-1 mic=0.1 ref=0.05 errors=0 delay_min=132 delay_max=132 erl=9.0";
+        foreach (var fields in new[]
+        {
+            "mode=0 ref_missing=0 delay=132 erle=9.2",  // learned
+            "mode=0 ref_missing=0 delay=12 erle=9.2",   // stock fallback alignment
+            "mode=0 ref_missing=0 delay=136 erle=0.2",  // not cancelling yet
+            "mode=1 ref_missing=0 delay=136 erle=9.2",  // bypass
+            "mode=0 ref_missing=1 delay=136 erle=9.2"   // no playback
+        })
+            parser.ProcessLine(fields + " " + health);
+        if (learned.Count != 1 || learned[0] != 132)
+            throw new InvalidOperationException("Echo delay learning accepted an unconfirmed delay.");
 
         var temporary = Path.Combine(Path.GetTempPath(), "voicemeeter-aec-host-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporary);

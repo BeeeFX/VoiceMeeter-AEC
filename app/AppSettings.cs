@@ -28,6 +28,8 @@ public sealed class AppSettings
     public int HoldMs { get; set; }
     public int DelayMs { get; set; }
     public bool AutomaticDelay { get; set; } = true;
+    /// <summary>Last echo delay confirmed by active cancellation; the next automatic start begins there.</summary>
+    public int LearnedEchoDelayMs { get; set; }
     public bool Allow44100Resampling { get; set; }
     public bool StartEngineWhenOpened { get; set; }
     public bool StartWithWindows { get; set; }
@@ -160,6 +162,7 @@ public sealed class AppSettings
         if (Suppression is not ("gentle" or "balanced" or "strong")) Suppression = "strong";
         HoldMs = Math.Clamp(HoldMs, 0, 250);
         DelayMs = Math.Clamp(DelayMs, 0, 500);
+        LearnedEchoDelayMs = Math.Clamp(LearnedEchoDelayMs, 0, 500);
         if (LastUpdateCheckUtc > DateTime.UtcNow.AddDays(1)) LastUpdateCheckUtc = default;
     }
 

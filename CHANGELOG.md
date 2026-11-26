@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.4 — start from the room's known echo delay
+
+- Remember the echo delay once cancellation is confirmed working (AEC on, playback present, delay of at least 24 ms and echo reduction of at least 6 dB) and start automatic tracking from it next time. Previously every cold start began at AEC3's stock 8-20 ms alignment; a field log showed almost 3 minutes of call audio before the real 136 ms delay was found, with no cancellation meanwhile. The remembered delay is AEC3's starting alignment after each reset only; the estimator still corrects it, and a wrong remembered delay was corrected within 10 s on the bench.
+- The delay is saved as `LearnedEchoDelayMs` and passed to the engine as `--delay-hint`; manual delay mode ignores it. It is learned during the first call in which cancellation works.
+- The two-second engine.log health line now reports the loudest microphone and reference levels of the interval, not the latest 10 ms block, so speech levels are no longer understated.
+- Offline bench: cold-start scenarios with sparse speech, a realistic room with near-end talk, and a wrong remembered delay; a "delay found" column. The bench's estimator finds the delay within a second even without a remembered delay, so the field improvement cannot be reproduced offline.
+
 ## 1.4.3 — keep the echo model across long pauses
 
 - Fix echo returning after five minutes of silence. Stock AEC3 switches from stereo back to mono processing after 300 s without stereo content (silence counts as none), and each switch rebuilds the canceller and forgets the echo delay; stereo audio afterwards rebuilt it again. Field logs showed every lost delay following exactly 300 s of silence, while pauses of 2-34 s kept it.

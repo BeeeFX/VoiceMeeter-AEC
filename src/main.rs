@@ -39,8 +39,10 @@ unsafe extern "C" fn aec_create(
         2 => ResidualSuppression::Gentle,
         _ => ResidualSuppression::Standard,
     };
-    // -1 selects AEC3's built-in estimator; nonnegative values select manual alignment.
-    Engine::with_delay_mode(delay_ms.max(0), hold_ms.max(0) as usize, profile, sample_rate.max(0) as usize, delay_ms < 0)
+    // Negative selects AEC3's built-in estimator, starting from -1 - delay_ms ms
+    // (-1: stock start); nonnegative values select manual alignment.
+    let delay = if delay_ms < 0 { (-1 - delay_ms).min(500) } else { delay_ms };
+    Engine::with_delay_mode(delay, hold_ms.max(0) as usize, profile, sample_rate.max(0) as usize, delay_ms < 0)
         .map(|engine| Box::into_raw(Box::new(engine)).cast())
         .unwrap_or(std::ptr::null_mut())
 }
@@ -106,7 +108,7 @@ fn cli() -> Result<(), String> {
             "VoiceMeeter AEC — audio engine · native 48 kHz; optional 44.1 kHz compatibility\nNo arguments: no audio device is opened.\n\
 --self-test : synthetic validation without a driver\n--probe [--edition banana|potato] : query an Insert driver without streaming\n\
 --run --edition banana|potato --mic 1 --ref 7,8[,15,16...] --returns 1,2 [--bypass] [--mute] [--auto]\n\
-  [--delay-ms 0] [--hold-ms 0] [--suppression gentle|balanced|strong] [--allow-44100-resampling] [--seconds 60] [--auto-strips 6,7,8|all --auto-bus 2]\n\
+  [--auto-delay [--delay-hint 0] | --manual-delay --delay-ms 0] [--hold-ms 0] [--suppression gentle|balanced|strong] [--allow-44100-resampling] [--seconds 60] [--auto-strips 6,7,8|all --auto-bus 2]\n\
 Default mode: Auto, the edition's VAIO strip to A2. --aec selects manual AEC.\n\
 Banana has 22 channels, 5 strips and A1..A3; Potato has 34 channels, 8 strips and A1..A5.\n\
 Keys: A=AEC B=bypass M=mute T=auto Q=quit.\n\
@@ -182,6 +184,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
     let mut suppression = ResidualSuppression::Standard;
     let mut allow_44100_resampling = false;
     let mut automatic_delay = true;
+    let mut delay_hint = 0;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -193,7 +196,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
             "--allow-44100-resampling" => allow_44100_resampling = true,
             "--auto-delay" => automatic_delay = true,
             "--manual-delay" => automatic_delay = false,
-            "--mic" | "--ref" | "--returns" | "--delay-ms" | "--hold-ms" | "--seconds"
+            "--mic" | "--ref" | "--returns" | "--delay-ms" | "--delay-hint" | "--hold-ms" | "--seconds"
             | "--suppression" | "--auto-strip" | "--auto-strips" | "--auto-bus" | "--edition" => {
                 let key = &args[i];
                 i += 1;
@@ -206,6 +209,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
                         returns = v.split(',').map(parse).collect::<Result<Vec<_>, _>>()?
                     }
                     "--delay-ms" => delay = parse(v)?,
+                    "--delay-hint" => delay_hint = parse(v)?,
                     "--hold-ms" => hold = parse(v)?,
                     "--auto-strip" | "--auto-strips" => auto_strips = Some(v.clone()),
                     "--auto-bus" => auto_bus = parse(v)?,
@@ -245,6 +249,7 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
         return Err("returns must include the microphone channel".into());
     }
     if !(0..=500).contains(&delay)
+        || !(0..=500).contains(&delay_hint)
         || !(0..=250).contains(&hold)
         || seconds < 0
         || !(1..=edition.buses()).contains(&auto_bus)
@@ -256,7 +261,11 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
         10 + hold
     );
     println!("Residual suppression: {suppression:?} (Standard = Strong / upstream)");
-    println!("Echo delay alignment: {}", if automatic_delay { "automatic (AEC3 tracking)" } else { "manual (--delay-ms)" });
+    match (automatic_delay, delay_hint) {
+        (false, _) => println!("Echo delay alignment: manual (--delay-ms)"),
+        (true, 0) => println!("Echo delay alignment: automatic (AEC3 tracking)"),
+        (true, hint) => println!("Echo delay alignment: automatic (AEC3 tracking), starting from remembered {hint} ms"),
+    }
     let auto_strips = auto_strips.unwrap_or_else(|| edition.default_playback_strip().to_string());
     let auto_mask = auto_strip_mask(&auto_strips, &returns, edition)?;
     println!(
@@ -293,7 +302,8 @@ Does not change PATCH settings. Read GUIDE-EN.md before --run."
                 auto_mask,
                 auto_bus - 1,
                 edition.native_code(),
-                if automatic_delay { -1 } else { delay },
+                // Negative selects automatic tracking; -1 - n starts it from n ms.
+                if automatic_delay { -1 - delay_hint } else { delay },
                 hold,
                 suppression_code(suppression),
                 i32::from(allow_44100_resampling),
